@@ -24,10 +24,20 @@ export default function ListDetailScreen({ route, navigation }) {
   const [itemDescription, setItemDescription] = useState('');
   const [itemDueDate, setItemDueDate] = useState(null);
   const [editingItemId, setEditingItemId] = useState(null);
-  
+
   const [filterMode, setFilterMode] = useState('all'); // 'all', 'active', 'completed'
-  const [sortMode, setSortMode] = useState('default'); // 'default', 'alpha', 'date'
+  const [sortMode, setSortMode] = useState('default'); // 'default', 'alpha', 'date', 'priority'
   const [menuVisible, setMenuVisible] = useState(false);
+
+  // 🔥 NEW: Priority state
+  const [itemPriority, setItemPriority] = useState('medium');
+
+  // 🔥 NEW: Priority colors
+  const priorityColors = {
+    high: '#FF3B30',
+    medium: '#FF9500',
+    low: '#4CAF50',
+  };
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -58,14 +68,23 @@ export default function ListDetailScreen({ route, navigation }) {
           title: itemTitle.trim(),
           description: itemDescription.trim(),
           dueDate: itemDueDate,
+          priority: itemPriority, // 🔥 NEW
         });
         setEditingItemId(null);
       } else {
-        addItem(listId, itemTitle.trim(), itemDescription.trim(), itemDueDate);
+        addItem(
+          listId,
+          itemTitle.trim(),
+          itemDescription.trim(),
+          itemDueDate,
+          itemPriority // 🔥 NEW
+        );
       }
+
       setItemTitle('');
       setItemDescription('');
       setItemDueDate(null);
+      setItemPriority('medium'); // 🔥 NEW
       setModalVisible(false);
     }
   };
@@ -75,6 +94,7 @@ export default function ListDetailScreen({ route, navigation }) {
     setItemTitle(item.title);
     setItemDescription(item.description || '');
     setItemDueDate(item.dueDate);
+    setItemPriority(item.priority || 'medium'); // 🔥 NEW
     setModalVisible(true);
   };
 
@@ -101,21 +121,27 @@ export default function ListDetailScreen({ route, navigation }) {
     );
   };
 
-  // Filter items
+  // Filter + Sort
   const getFilteredItems = () => {
     let filtered = [...list.items];
-    
+
     if (filterMode === 'active') {
       filtered = filtered.filter(item => !item.completed);
     } else if (filterMode === 'completed') {
       filtered = filtered.filter(item => item.completed);
     }
 
-    // Sort items
     if (sortMode === 'alpha') {
       filtered.sort((a, b) => a.title.localeCompare(b.title));
     } else if (sortMode === 'date') {
       filtered.sort((a, b) => b.createdAt - a.createdAt);
+    } else if (sortMode === 'priority') {
+      const priorityOrder = { high: 0, medium: 1, low: 2 };
+      filtered.sort((a, b) => {
+        const aP = priorityOrder[a.priority || 'medium'];
+        const bP = priorityOrder[b.priority || 'medium'];
+        return aP - bP;
+      });
     }
 
     return filtered;
@@ -161,6 +187,7 @@ export default function ListDetailScreen({ route, navigation }) {
       {/* Sort Controls */}
       <View style={styles.sortContainer}>
         <Text style={styles.sortLabel}>Sort:</Text>
+
         <TouchableOpacity
           style={[styles.sortButton, sortMode === 'default' && styles.sortButtonActive]}
           onPress={() => setSortMode('default')}
@@ -169,6 +196,7 @@ export default function ListDetailScreen({ route, navigation }) {
             Default
           </Text>
         </TouchableOpacity>
+
         <TouchableOpacity
           style={[styles.sortButton, sortMode === 'alpha' && styles.sortButtonActive]}
           onPress={() => setSortMode('alpha')}
@@ -177,12 +205,23 @@ export default function ListDetailScreen({ route, navigation }) {
             A-Z
           </Text>
         </TouchableOpacity>
+
         <TouchableOpacity
           style={[styles.sortButton, sortMode === 'date' && styles.sortButtonActive]}
           onPress={() => setSortMode('date')}
         >
           <Text style={[styles.sortText, sortMode === 'date' && styles.sortTextActive]}>
             Date
+          </Text>
+        </TouchableOpacity>
+
+        {/* 🔥 NEW: Priority sort */}
+        <TouchableOpacity
+          style={[styles.sortButton, sortMode === 'priority' && styles.sortButtonActive]}
+          onPress={() => setSortMode('priority')}
+        >
+          <Text style={[styles.sortText, sortMode === 'priority' && styles.sortTextActive]}>
+            Priority
           </Text>
         </TouchableOpacity>
       </View>
@@ -224,6 +263,7 @@ export default function ListDetailScreen({ route, navigation }) {
           setItemTitle('');
           setItemDescription('');
           setItemDueDate(null);
+          setItemPriority('medium'); // 🔥 NEW
           setModalVisible(true);
         }}
       >
@@ -242,6 +282,34 @@ export default function ListDetailScreen({ route, navigation }) {
             <Text style={styles.modalTitle}>
               {editingItemId ? 'Edit Item' : 'New Item'}
             </Text>
+
+            {/* 🔥 NEW: Priority Selector */}
+            <View style={styles.prioritySection}>
+              <Text style={styles.sectionLabel}>Priority:</Text>
+              <View style={styles.priorityButtons}>
+                {['high', 'medium', 'low'].map(p => (
+                  <TouchableOpacity
+                    key={p}
+                    style={[
+                      styles.priorityButton,
+                      itemPriority === p && styles.priorityButtonActive,
+                      { borderColor: priorityColors[p] }
+                    ]}
+                    onPress={() => setItemPriority(p)}
+                  >
+                    <Text
+                      style={[
+                        styles.priorityButtonText,
+                        { color: priorityColors[p] }
+                      ]}
+                    >
+                      {p.charAt(0).toUpperCase() + p.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
             <TextInput
               style={styles.modalInput}
               placeholder="Title"
@@ -257,6 +325,7 @@ export default function ListDetailScreen({ route, navigation }) {
               multiline
               numberOfLines={3}
             />
+
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.cancelButton]}
@@ -265,11 +334,13 @@ export default function ListDetailScreen({ route, navigation }) {
                   setItemTitle('');
                   setItemDescription('');
                   setItemDueDate(null);
+                  setItemPriority('medium'); // 🔥 NEW
                   setEditingItemId(null);
                 }}
               >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
+
               <TouchableOpacity
                 style={[styles.modalButton, styles.createButton]}
                 onPress={handleAddOrEditItem}
@@ -415,6 +486,7 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 8,
   },
+
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -434,6 +506,37 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     color: '#333',
   },
+
+  /* 🔥 NEW PRIORITY UI STYLES */
+  prioritySection: {
+    marginBottom: 15,
+  },
+  sectionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+    color: '#666',
+  },
+  priorityButtons: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  priorityButton: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    borderWidth: 2,
+    alignItems: 'center',
+  },
+  priorityButtonActive: {
+    backgroundColor: '#f0f0f0',
+  },
+  priorityButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
   modalInput: {
     borderWidth: 1,
     borderColor: '#ddd',
@@ -474,6 +577,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+
   menuOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -503,3 +607,5 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 });
+
+//export default ListDetailScreen;

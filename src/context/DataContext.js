@@ -73,8 +73,14 @@ export const DataProvider = ({ children }) => {
     ));
   };
 
-  // Add item to a list
-  const addItem = (listId, title, description = '', dueDate = null) => {
+  // Add item to a list — UPDATED FOR PRIORITY
+  const addItem = (
+    listId,
+    title,
+    description = '',
+    dueDate = null,
+    priority = 'medium'   // ← NEW PARAMETER
+  ) => {
     setLists(lists.map(list => {
       if (list.id === listId) {
         const newItem = {
@@ -84,6 +90,7 @@ export const DataProvider = ({ children }) => {
           completed: false,
           createdAt: Date.now(),
           dueDate,
+          priority,        // ← NEW FIELD
         };
         return { ...list, items: [...list.items, newItem] };
       }
@@ -91,7 +98,7 @@ export const DataProvider = ({ children }) => {
     }));
   };
 
-  // Update item
+  // Update item (already supports priority via updates object)
   const updateItem = (listId, itemId, updates) => {
     setLists(lists.map(list => {
       if (list.id === listId) {

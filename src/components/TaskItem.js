@@ -42,8 +42,23 @@ export default function TaskItem({ item, listId, onEdit }) {
     return new Date(dueDate) < new Date() && !item.completed;
   };
 
+  // 🔥 NEW: Priority colors
+  const priorityColors = {
+    high: '#FF3B30',
+    medium: '#FF9500',
+    low: '#4CAF50',
+  };
+
   return (
     <View style={styles.container}>
+      {/* 🔥 NEW: Priority bar */}
+      <View
+        style={[
+          styles.priorityBar,
+          { backgroundColor: priorityColors[item.priority || 'medium'] }
+        ]}
+      />
+
       <TouchableOpacity
         style={styles.checkbox}
         onPress={() => toggleItem(listId, item.id)}
@@ -115,6 +130,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 10,
     padding: 12,
+    paddingLeft: 16, // 🔥 NEW: space for priority bar
     marginBottom: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -122,6 +138,18 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
+
+  // 🔥 NEW: Priority bar style
+  priorityBar: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    borderTopLeftRadius: 10,
+    borderBottomLeftRadius: 10,
+  },
+
   checkbox: {
     paddingTop: 2,
     paddingRight: 12,
