@@ -35,8 +35,11 @@ export default function ListDetailScreen({ route, navigation }) {
   const [bulkModalVisible, setBulkModalVisible] = useState(false);
   const [bulkText, setBulkText] = useState('');
   const [stagedItems, setStagedItems] = useState([]);
-
+  
   // Menu and filter state
+  const [filterMode, setFilterMode] = useState('all'); // 'all', 'active', 'completed'
+  const [sortMode, setSortMode] = useState('default'); // 'default', 'alpha', 'date', 'priority'
+  
   const [menuVisible, setMenuVisible] = useState(false);
   const [priorityFilter, setPriorityFilter] = useState('all'); // 'all', 'high', 'medium', 'low'
 
@@ -201,17 +204,129 @@ export default function ListDetailScreen({ route, navigation }) {
 
   // FILTER FUNCTIONS
   const getFilteredItems = () => {
-    if (priorityFilter === 'all') {
-      return list.items;
+    let filtered = [...list.items];
+    
+    // Apply completion filter (all/active/completed)
+    if (filterMode === 'active') {
+      filtered = filtered.filter(item => !item.completed);
+    } else if (filterMode === 'completed') {
+      filtered = filtered.filter(item => item.completed);
     }
-    return list.items.filter(item => item.priority === priorityFilter);
+    
+    // Apply priority filter (from priority buttons)
+    if (priorityFilter !== 'all') {
+      filtered = filtered.filter(item => item.priority === priorityFilter);
+    }
+    
+    // Apply sort
+    if (sortMode === 'alpha') {
+      filtered.sort((a, b) => a.title.localeCompare(b.title));
+    } else if (sortMode === 'date') {
+      filtered.sort((a, b) => b.createdAt - a.createdAt);
+    } else if (sortMode === 'priority') {
+      const priorityOrder = { high: 0, medium: 1, low: 2 };
+      filtered.sort((a, b) => {
+        const aP = priorityOrder[a.priority || 'medium'];
+        const bP = priorityOrder[b.priority || 'medium'];
+        return aP - bP;
+      });
+    }
+    
+    return filtered;
   };
 
+
   const filteredItems = getFilteredItems();
+  const stats = {
+    total: list.items.length,
+    active: list.items.filter(item => !item.completed).length,
+    completed: list.items.filter(item => item.completed).length,
+  };
+  
+  //const getFilteredItems = () => {
+  //  if (priorityFilter === 'all') {
+  //    return list.items;
+  //  }
+  //  return list.items.filter(item => item.priority === priorityFilter);
+  //};
+  //const filteredItems = getFilteredItems();
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      
+    
+      {/* STATS BAR - ADD THIS */}
+      <View
+        style={[
+          styles.statsBar,
+          { backgroundColor: theme.card, borderBottomColor: theme.border }
+        ]}
+      >
+        {['all', 'active', 'completed'].map(mode => (
+          <TouchableOpacity
+            key={mode}
+            style={[
+              styles.statButton,
+              filterMode === mode && { backgroundColor: theme.primary }
+            ]}
+            onPress={() => setFilterMode(mode)}
+          >
+            <Text
+              style={[
+                styles.statText,
+                { color: filterMode === mode ? '#fff' : theme.text }
+              ]}
+            >
+              {mode === 'all'
+                ? `All (${stats.total})`
+                : mode === 'active'
+                ? `Active (${stats.active})`
+                : `Done (${stats.completed})`}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* SORT BAR - ADD THIS */}
+      <View
+        style={[
+          styles.sortContainer,
+          { backgroundColor: theme.card, borderBottomColor: theme.border }
+        ]}
+      >
+        <Text style={[styles.sortLabel, { color: theme.textSecondary }]}>
+          Sort:
+        </Text>
+
+        {[
+          { key: 'default', label: 'Default' },
+          { key: 'alpha', label: 'A-Z' },
+          { key: 'date', label: 'Date' },
+          { key: 'priority', label: 'Priority' },
+        ].map(btn => (
+          <TouchableOpacity
+            key={btn.key}
+            style={[
+              styles.sortButton,
+              { borderColor: theme.border },
+              sortMode === btn.key && {
+                backgroundColor: theme.primary + '22',
+                borderColor: theme.primary,
+              }
+            ]}
+            onPress={() => setSortMode(btn.key)}
+          >
+            <Text
+              style={[
+                styles.sortText,
+                { color: sortMode === btn.key ? theme.primary : theme.text }
+              ]}
+            >
+              {btn.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+	  
       {/* PRIORITY FILTER BUTTONS */}
       <View style={[styles.filterContainer, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -608,6 +723,48 @@ export default function ListDetailScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   headerButton: { padding: 10 },
+
+  // ADD THESE STATS BAR STYLES
+  statsBar: {
+    flexDirection: 'row',
+    padding: 10,
+    borderBottomWidth: 1,
+  },
+  statButton: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginHorizontal: 4,
+    alignItems: 'center',
+  },
+  statText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+
+  // ADD THESE SORT BAR STYLES
+  sortContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    paddingTop: 5,
+    borderBottomWidth: 1,
+  },
+  sortLabel: {
+    fontSize: 14,
+    marginRight: 10,
+  },
+  sortButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    marginRight: 8,
+    borderWidth: 1,
+  },
+  sortText: {
+    fontSize: 13,
+  },
   
   // Filter styles
   filterContainer: {
