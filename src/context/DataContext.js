@@ -29,7 +29,7 @@ export const DataProvider = ({ children }) => {
 
   const loadData = async () => {
     try {
-      const jsonValue = await AsyncStorage.getItem('@tasklist_data');
+      const jsonValue = await AsyncStorage.getItem('@ListHappens_data');
       if (jsonValue != null) {
         setLists(JSON.parse(jsonValue));
       }
@@ -43,7 +43,7 @@ export const DataProvider = ({ children }) => {
   const saveData = async () => {
     try {
       const jsonValue = JSON.stringify(lists);
-      await AsyncStorage.setItem('@tasklist_data', jsonValue);
+      await AsyncStorage.setItem('@ListHappens_data', jsonValue);
     } catch (e) {
       console.error('Error saving data:', e);
     }

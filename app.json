@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "TaskList",
-    "slug": "tasklist",
+    "name": "ListHappens",
+    "slug": "ListHappens",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -11,24 +11,29 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.tasklist.app"
+      "bundleIdentifier": "com.ListHappens.app"
     },
     "android": {
-      "package": "com.tasklist.app"
+      "package": "com.ListHappens.app"
     },
     "plugins": [
       [
         "expo-build-properties",
         {
           "android": {
-            "newArchEnabled": false
+            "newArchEnabled": true
           },
           "ios": {
-            "newArchEnabled": false
+            "newArchEnabled": true
           }
         }
       ],
       "@react-native-community/datetimepicker"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "9aacecdf-8b78-4daa-b11c-2a5aefe26693"
+      }
+    }
   }
 }
