@@ -73,7 +73,7 @@ export const DataProvider = ({ children }) => {
     ));
   };
 
-  // Add item to a list — supports priority
+  // Add item to a list – supports priority and prevents ID collisions
   const addItem = (
     listId,
     title,
@@ -81,21 +81,24 @@ export const DataProvider = ({ children }) => {
     dueDate = null,
     priority = 'medium'
   ) => {
-    setLists(lists.map(list => {
-      if (list.id === listId) {
-        const newItem = {
-          id: Date.now().toString(),
-          title,
-          description,
-          completed: false,
-          createdAt: Date.now(),
-          dueDate,
-          priority,
-        };
-        return { ...list, items: [...list.items, newItem] };
-      }
-      return list;
-    }));
+    setLists(prevLists =>
+      prevLists.map(list => {
+        if (list.id === listId) {
+          const newItem = {
+            // Generate unique ID with timestamp + random suffix to prevent collisions during bulk add
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+            title,
+            description,
+            completed: false,
+            createdAt: Date.now(),
+            dueDate,
+            priority,
+          };
+          return { ...list, items: [...list.items, newItem] };
+        }
+        return list;
+      })
+    );
   };
 
   // Update item
@@ -154,7 +157,20 @@ export const DataProvider = ({ children }) => {
     }));
   };
 
-  // 🔥 NEW: Reorder items (drag & drop)
+  // Select all items (mark all as completed)
+  const selectAll = (listId) => {
+    setLists(lists.map(list => {
+      if (list.id === listId) {
+        return {
+          ...list,
+          items: list.items.map(item => ({ ...item, completed: true })),
+        };
+      }
+      return list;
+    }));
+  };
+
+  // Reorder items (drag & drop)
   const reorderItems = (listId, newItemsOrder) => {
     setLists(lists.map(list => {
       if (list.id === listId) {
@@ -175,7 +191,8 @@ export const DataProvider = ({ children }) => {
     toggleItem,
     deleteItem,
     clearCompleted,
-    reorderItems, // 🔥 Make available to UI
+	selectAll, //Added for select all functionality
+    reorderItems,
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

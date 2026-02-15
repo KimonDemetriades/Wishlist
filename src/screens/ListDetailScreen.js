@@ -8,6 +8,7 @@ import {
   Modal,
   Alert,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../context/DataContext';
@@ -17,35 +18,34 @@ import { useTheme } from '../context/ThemeContext';
 
 export default function ListDetailScreen({ route, navigation }) {
   const { listId } = route.params;
-  const { lists, addItem, clearCompleted, updateItem, reorderItems } = useData();
+  const { lists, addItem, clearCompleted, updateItem, reorderItems, deleteItem, toggleItem, selectAll } = useData();
   const list = lists.find(l => l.id === listId);
 
   const { theme } = useTheme();
 
+  // Single add modal state
   const [modalVisible, setModalVisible] = useState(false);
   const [itemTitle, setItemTitle] = useState('');
   const [itemDescription, setItemDescription] = useState('');
   const [itemDueDate, setItemDueDate] = useState(null);
+  const [itemPriority, setItemPriority] = useState('medium');
   const [editingItemId, setEditingItemId] = useState(null);
 
-  const [filterMode, setFilterMode] = useState('all');
-  const [sortMode, setSortMode] = useState('default');
+  // Bulk add modal state
+  const [bulkModalVisible, setBulkModalVisible] = useState(false);
+  const [bulkText, setBulkText] = useState('');
+  const [stagedItems, setStagedItems] = useState([]);
+
+  // Menu and filter state
   const [menuVisible, setMenuVisible] = useState(false);
-
-  const [itemPriority, setItemPriority] = useState('medium');
-
-  const priorityColors = {
-    high: '#FF3B30',
-    medium: '#FF9500',
-    low: '#4CAF50',
-  };
+  const [priorityFilter, setPriorityFilter] = useState('all'); // 'all', 'high', 'medium', 'low'
 
   useLayoutEffect(() => {
     navigation.setOptions({
       title: list?.name || 'List',
       headerStyle: { backgroundColor: theme.card },
       headerTintColor: theme.text,
-      headerTitleStyle: { color: theme.text, fontWeight: 'bold'},
+      headerTitleStyle: { color: theme.text, fontWeight: 'bold' },
       headerRight: () => (
         <TouchableOpacity
           onPress={() => setMenuVisible(true)}
@@ -65,34 +65,30 @@ export default function ListDetailScreen({ route, navigation }) {
     );
   }
 
+  // SINGLE ITEM FUNCTIONS
   const handleAddOrEditItem = () => {
-    if (itemTitle.trim()) {
-      if (editingItemId) {
-        updateItem(listId, editingItemId, {
-          title: itemTitle.trim(),
-          description: itemDescription.trim(),
-          dueDate: itemDueDate,
-          priority: itemPriority,
-        });
-        setEditingItemId(null);
-      } else {
-        addItem(
-          listId,
-          itemTitle.trim(),
-          itemDescription.trim(),
-          itemDueDate,
-          itemPriority
-        );
-      }
+    if (!itemTitle.trim()) return;
 
-      setItemTitle('');
-      setItemDescription('');
-      setItemDueDate(null);
-      setItemPriority('medium');
-      setModalVisible(false);
+    if (editingItemId) {
+      updateItem(listId, editingItemId, {
+        title: itemTitle.trim(),
+        description: itemDescription.trim(),
+        dueDate: itemDueDate,
+        priority: itemPriority,
+      });
+      setEditingItemId(null);
+    } else {
+      addItem(listId, itemTitle.trim(), itemDescription.trim(), itemDueDate, itemPriority);
     }
+
+    setItemTitle('');
+    setItemDescription('');
+    setItemDueDate(null);
+    setItemPriority('medium');
+    setModalVisible(false);
   };
 
+  // Open edit modal for an item
   const handleEditItem = (item) => {
     setEditingItemId(item.id);
     setItemTitle(item.title);
@@ -102,19 +98,97 @@ export default function ListDetailScreen({ route, navigation }) {
     setModalVisible(true);
   };
 
-  const handleClearCompleted = () => {
-    const completedCount = list.items.filter(item => item.completed).length;
-    if (completedCount === 0) {
-      Alert.alert('No Completed Items', 'There are no completed items to clear.');
+  // BULK ADD FUNCTIONS
+  const parseBulkText = () => {
+    const parsed = bulkText
+      .split(/\r?\n/)
+      .map(l => l.trim())
+      .filter(Boolean);
+
+    if (parsed.length === 0) {
+      Alert.alert('Nothing to preview', 'Enter one item per line.');
       return;
     }
+
+    setStagedItems(parsed);
+  };
+
+  const acceptBulkAdd = () => {
+    stagedItems.forEach(title => {
+      addItem(listId, title, '', null, 'medium');
+    });
+
+    setBulkText('');
+    setStagedItems([]);
+    setBulkModalVisible(false);
+  };
+
+  const cancelBulkAdd = () => {
+    setBulkText('');
+    setStagedItems([]);
+    setBulkModalVisible(false);
+  };
+
+  const cleanStagedItems = () => {
+    const pattern = new RegExp('^(\\[[^\\]]*\\]\\s*)+', 'g');
+    const cleaned = stagedItems.map(item => 
+      item.trimStart().replace(pattern, '') 
+    );
+    setStagedItems(cleaned);
+  };
+
+  const rejectBulkAdd = () => {
+    setBulkText('');
+    setStagedItems([]);
+    setBulkModalVisible(false);
+  };
+
+  const removeStagedItem = (index) => {
+    setStagedItems(items => items.filter((_, i) => i !== index));
+  };
+
+  // MENU FUNCTIONS
+  const handleSelectAll = () => {
+    const incompleteCount = list.items.filter(item => !item.completed).length;
+  
+    if (incompleteCount === 0) {
+      Alert.alert('All Complete', 'All items are already marked as completed.');
+      setMenuVisible(false);
+      return;
+    }
+
     Alert.alert(
-      'Clear Completed',
-      `Delete ${completedCount} completed item${completedCount > 1 ? 's' : ''}?`,
+      'Select All',
+      `Mark ${incompleteCount} item${incompleteCount !== 1 ? 's' : ''} as completed?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete',
+          text: 'Mark All',
+          onPress: () => {
+            selectAll(listId);
+            setMenuVisible(false);
+          },
+        },
+      ]
+    );
+  };
+  
+  const handleClearCompleted = () => {
+    const completedCount = list.items.filter(item => item.completed).length;
+    
+    if (completedCount === 0) {
+      Alert.alert('No completed items', 'There are no completed items to clear.');
+      setMenuVisible(false);
+      return;
+    }
+
+    Alert.alert(
+      'Clear Completed',
+      `Remove ${completedCount} completed item${completedCount !== 1 ? 's' : ''}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
           style: 'destructive',
           onPress: () => {
             clearCompleted(listId);
@@ -125,156 +199,130 @@ export default function ListDetailScreen({ route, navigation }) {
     );
   };
 
+  // FILTER FUNCTIONS
   const getFilteredItems = () => {
-    let filtered = [...list.items];
-
-    if (filterMode === 'active') {
-      filtered = filtered.filter(item => !item.completed);
-    } else if (filterMode === 'completed') {
-      filtered = filtered.filter(item => item.completed);
+    if (priorityFilter === 'all') {
+      return list.items;
     }
-
-    if (sortMode === 'alpha') {
-      filtered.sort((a, b) => a.title.localeCompare(b.title));
-    } else if (sortMode === 'date') {
-      filtered.sort((a, b) => b.createdAt - a.createdAt);
-    } else if (sortMode === 'priority') {
-      const priorityOrder = { high: 0, medium: 1, low: 2 };
-      filtered.sort((a, b) => {
-        const aP = priorityOrder[a.priority || 'medium'];
-        const bP = priorityOrder[b.priority || 'medium'];
-        return aP - bP;
-      });
-    }
-
-    return filtered;
+    return list.items.filter(item => item.priority === priorityFilter);
   };
 
   const filteredItems = getFilteredItems();
-  const stats = {
-    total: list.items.length,
-    active: list.items.filter(item => !item.completed).length,
-    completed: list.items.filter(item => item.completed).length,
-  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-
-      {/* Stats Bar */}
-      <View
-        style={[
-          styles.statsBar,
-          { backgroundColor: theme.card, borderBottomColor: theme.border }
-        ]}
-      >
-        {['all', 'active', 'completed'].map(mode => (
+      
+      {/* PRIORITY FILTER BUTTONS */}
+      <View style={[styles.filterContainer, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <TouchableOpacity
-            key={mode}
             style={[
-              styles.statButton,
-              filterMode === mode && { backgroundColor: theme.primary }
+              styles.filterButton,
+              priorityFilter === 'all' && { backgroundColor: theme.primary },
             ]}
-            onPress={() => setFilterMode(mode)}
+            onPress={() => setPriorityFilter('all')}
           >
-            <Text
-              style={[
-                styles.statText,
-                { color: filterMode === mode ? '#fff' : theme.text }
-              ]}
-            >
-              {mode === 'all'
-                ? `All (${stats.total})`
-                : mode === 'active'
-                ? `Active (${stats.active})`
-                : `Done (${stats.completed})`}
+            <Text style={[
+              styles.filterButtonText,
+              { color: priorityFilter === 'all' ? '#fff' : theme.text }
+            ]}>
+              All ({list.items.length})
             </Text>
           </TouchableOpacity>
-        ))}
-      </View>
 
-      {/* Sort Bar */}
-      <View
-        style={[
-          styles.sortContainer,
-          { backgroundColor: theme.card, borderBottomColor: theme.border }
-        ]}
-      >
-        <Text style={[styles.sortLabel, { color: theme.textSecondary }]}>
-          Sort:
-        </Text>
-
-        {[
-          { key: 'default', label: 'Default' },
-          { key: 'alpha', label: 'A-Z' },
-          { key: 'date', label: 'Date' },
-          { key: 'priority', label: 'Priority' },
-        ].map(btn => (
           <TouchableOpacity
-            key={btn.key}
             style={[
-              styles.sortButton,
-              { borderColor: theme.border },
-              sortMode === btn.key && {
-                backgroundColor: theme.primary + '22',
-                borderColor: theme.primary,
-              }
+              styles.filterButton,
+              priorityFilter === 'high' && { backgroundColor: '#ef4444' },
             ]}
-            onPress={() => setSortMode(btn.key)}
+            onPress={() => setPriorityFilter('high')}
           >
-            <Text
-              style={[
-                styles.sortText,
-                { color: sortMode === btn.key ? theme.primary : theme.text }
-              ]}
-            >
-              {btn.label}
+            <Text style={[
+              styles.filterButtonText,
+              { color: priorityFilter === 'high' ? '#fff' : theme.text }
+            ]}>
+              High ({list.items.filter(i => i.priority === 'high').length})
             </Text>
           </TouchableOpacity>
-        ))}
+
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              priorityFilter === 'medium' && { backgroundColor: '#f59e0b' },
+            ]}
+            onPress={() => setPriorityFilter('medium')}
+          >
+            <Text style={[
+              styles.filterButtonText,
+              { color: priorityFilter === 'medium' ? '#fff' : theme.text }
+            ]}>
+              Medium ({list.items.filter(i => i.priority === 'medium').length})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              priorityFilter === 'low' && { backgroundColor: '#10b981' },
+            ]}
+            onPress={() => setPriorityFilter('low')}
+          >
+            <Text style={[
+              styles.filterButtonText,
+              { color: priorityFilter === 'low' ? '#fff' : theme.text }
+            ]}>
+              Low ({list.items.filter(i => i.priority === 'low').length})
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
       </View>
 
-      {/* Draggable List */}
+      {/* TASK LIST */}
       <DraggableFlatList
         data={filteredItems}
         keyExtractor={item => item.id}
         onDragEnd={({ data }) => reorderItems(listId, data)}
         contentContainerStyle={styles.listContainer}
         renderItem={({ item, drag, isActive }) => (
-          <TouchableOpacity
-            onLongPress={drag}
+          <TouchableOpacity 
+            onLongPress={drag} 
             disabled={isActive}
-            style={[
-              isActive && styles.dragging,
-              isActive && { backgroundColor: theme.card }
-            ]}
+            onPress={() => handleEditItem(item)}
           >
-            <TaskItem
-              item={item}
-              listId={listId}
-              onEdit={() => handleEditItem(item)}
-            />
+            <TaskItem item={item} listId={listId} />
           </TouchableOpacity>
         )}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="checkmark-circle-outline" size={80} color={theme.border} />
+            <Ionicons name="list-outline" size={64} color={theme.textSecondary} />
             <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-              {filterMode === 'completed'
-                ? 'No completed items'
-                : filterMode === 'active'
-                ? 'No active items'
-                : 'No items yet'}
+              No items in this list
             </Text>
-            {filterMode === 'all' && (
-              <Text style={[styles.emptySubtext, { color: theme.textSecondary }]}>
-                Tap the + button to add one
-              </Text>
-            )}
+            <Text style={[styles.emptySubtext, { color: theme.textSecondary }]}>
+              Tap + to add an item
+            </Text>
           </View>
         }
       />
 
-      {/* FAB */}
+      {/* BULK ADD FAB */}
+      <TouchableOpacity
+        style={[
+          styles.fab,
+          {
+            bottom: 95,
+            width: 50,
+            height: 50,
+            borderRadius: 25,
+            backgroundColor: theme.primary,
+          },
+        ]}
+        onPress={() => setBulkModalVisible(true)}
+      >
+        <Ionicons name="list-outline" size={24} color="#fff" />
+      </TouchableOpacity>
+
+      {/* SINGLE ADD FAB */}
       <TouchableOpacity
         style={[styles.fab, { backgroundColor: theme.success }]}
         onPress={() => {
@@ -289,124 +337,10 @@ export default function ListDetailScreen({ route, navigation }) {
         <Ionicons name="add" size={30} color="#fff" />
       </TouchableOpacity>
 
-      {/* Modal */}
+      {/* MENU MODAL */}
       <Modal
-        animationType="slide"
         transparent
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
-            <Text style={[styles.modalTitle, { color: theme.text }]}>
-              {editingItemId ? 'Edit Item' : 'New Item'}
-            </Text>
-
-            {/* Priority Selector */}
-            <View style={styles.prioritySection}>
-              <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
-                Priority:
-              </Text>
-              <View style={styles.priorityButtons}>
-                {['high', 'medium', 'low'].map(p => (
-                  <TouchableOpacity
-                    key={p}
-                    style={[
-                      styles.priorityButton,
-                      { borderColor: priorityColors[p] },
-                      itemPriority === p && { backgroundColor: theme.border + '33' }
-                    ]}
-                    onPress={() => setItemPriority(p)}
-                  >
-                    <Text
-                      style={[
-                        styles.priorityButtonText,
-                        { color: priorityColors[p] }
-                      ]}
-                    >
-                      {p.charAt(0).toUpperCase() + p.slice(1)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <TextInput
-              style={[
-                styles.modalInput,
-                {
-                  backgroundColor: theme.card,
-                  color: theme.text,
-                  borderColor: theme.border,
-                }
-              ]}
-              placeholder="Title"
-              placeholderTextColor={theme.textSecondary}
-              value={itemTitle}
-              onChangeText={setItemTitle}
-              autoFocus
-            />
-
-            <TextInput
-              style={[
-                styles.modalInput,
-                styles.descriptionInput,
-                {
-                  backgroundColor: theme.card,
-                  color: theme.text,
-                  borderColor: theme.border,
-                }
-              ]}
-              placeholder="Description (optional)"
-              placeholderTextColor={theme.textSecondary}
-              value={itemDescription}
-              onChangeText={setItemDescription}
-              multiline
-              numberOfLines={3}
-            />
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[
-                  styles.modalButton,
-                  styles.cancelButton,
-                  { backgroundColor: theme.border + '33' }
-                ]}
-                onPress={() => {
-                  setModalVisible(false);
-                  setItemTitle('');
-                  setItemDescription('');
-                  setItemDueDate(null);
-                  setItemPriority('medium');
-                  setEditingItemId(null);
-                }}
-              >
-                <Text style={[styles.cancelButtonText, { color: theme.text }]}>
-                  Cancel
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.modalButton,
-                  styles.createButton,
-                  { backgroundColor: theme.success }
-                ]}
-                onPress={handleAddOrEditItem}
-              >
-                <Text style={[styles.createButtonText, { color: '#fff' }]}>
-                  {editingItemId ? 'Save' : 'Add'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Menu */}
-      <Modal
         animationType="fade"
-        transparent
         visible={menuVisible}
         onRequestClose={() => setMenuVisible(false)}
       >
@@ -418,10 +352,22 @@ export default function ListDetailScreen({ route, navigation }) {
           <View style={[styles.menuContent, { backgroundColor: theme.card }]}>
             <TouchableOpacity
               style={styles.menuItem}
+              onPress={handleSelectAll}
+            >
+              <Ionicons name="checkmark-done-outline" size={20} color={theme.success} />
+              <Text style={[styles.menuItemText, { color: theme.text }]}>
+                Select All
+              </Text>
+            </TouchableOpacity>
+
+            <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />		  
+
+            <TouchableOpacity
+              style={styles.menuItem}
               onPress={handleClearCompleted}
             >
-              <Ionicons name="trash-outline" size={24} color={theme.danger} />
-              <Text style={[styles.menuText, { color: theme.danger }]}>
+              <Ionicons name="trash-outline" size={20} color={theme.danger} />
+              <Text style={[styles.menuItemText, { color: theme.danger }]}>
                 Clear Completed
               </Text>
             </TouchableOpacity>
@@ -429,81 +375,281 @@ export default function ListDetailScreen({ route, navigation }) {
         </TouchableOpacity>
       </Modal>
 
+      {/* SINGLE ADD/EDIT MODAL */}
+      <Modal transparent animationType="slide" visible={modalVisible}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>
+              {editingItemId ? 'Edit Item' : 'Add Item'}
+            </Text>
+
+            <TextInput
+              style={[
+                styles.modalInput,
+                { color: theme.text, borderColor: theme.border, backgroundColor: theme.background },
+              ]}
+              placeholder="Item title"
+              placeholderTextColor={theme.textSecondary}
+              value={itemTitle}
+              onChangeText={setItemTitle}
+              autoFocus
+            />
+
+            <TextInput
+              style={[
+                styles.modalInput,
+                {
+                  height: 80,
+                  textAlignVertical: 'top',
+                  color: theme.text,
+                  borderColor: theme.border,
+                  backgroundColor: theme.background,
+                },
+              ]}
+              placeholder="Description (optional)"
+              placeholderTextColor={theme.textSecondary}
+              multiline
+              value={itemDescription}
+              onChangeText={setItemDescription}
+            />
+
+            {/* PRIORITY SELECTOR */}
+            <Text style={[styles.priorityLabel, { color: theme.text }]}>Priority:</Text>
+            <View style={styles.priorityContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.priorityButton,
+                  itemPriority === 'high' && styles.priorityButtonActive,
+                  itemPriority === 'high' && { backgroundColor: '#ef4444' },
+                ]}
+                onPress={() => setItemPriority('high')}
+              >
+                <Text style={[
+                  styles.priorityButtonText,
+                  { color: itemPriority === 'high' ? '#fff' : theme.text }
+                ]}>
+                  High
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.priorityButton,
+                  itemPriority === 'medium' && styles.priorityButtonActive,
+                  itemPriority === 'medium' && { backgroundColor: '#f59e0b' },
+                ]}
+                onPress={() => setItemPriority('medium')}
+              >
+                <Text style={[
+                  styles.priorityButtonText,
+                  { color: itemPriority === 'medium' ? '#fff' : theme.text }
+                ]}>
+                  Medium
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.priorityButton,
+                  itemPriority === 'low' && styles.priorityButtonActive,
+                  itemPriority === 'low' && { backgroundColor: '#10b981' },
+                ]}
+                onPress={() => setItemPriority('low')}
+              >
+                <Text style={[
+                  styles.priorityButtonText,
+                  { color: itemPriority === 'low' ? '#fff' : theme.text }
+                ]}>
+                  Low
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalButtonRow}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton, { borderColor: theme.border }]}
+                onPress={() => {
+                  setModalVisible(false);
+                  setEditingItemId(null);
+                }}
+              >
+                <Text style={[styles.modalButtonText, { color: theme.text }]}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalButton, styles.primaryButton, { backgroundColor: theme.success }]}
+                onPress={handleAddOrEditItem}
+              >
+                <Text style={[styles.modalButtonText, { color: '#fff' }]}>
+                  {editingItemId ? 'Update' : 'Add'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* BULK ADD MODAL */}
+      <Modal transparent animationType="slide" visible={bulkModalVisible}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>
+              Bulk Add Items
+            </Text>
+
+            {stagedItems.length === 0 ? (
+              <>
+                <TextInput
+                  style={[
+                    styles.modalInput,
+                    {
+                      height: 160,
+                      textAlignVertical: 'top',
+                      color: theme.text,
+                      borderColor: theme.border,
+                      backgroundColor: theme.background,
+                    },
+                  ]}
+                  placeholder="One item per line"
+                  placeholderTextColor={theme.textSecondary}
+                  multiline
+                  value={bulkText}
+                  onChangeText={setBulkText}
+                  autoFocus
+                />
+
+                <View style={styles.modalButtonRow}>
+                  <TouchableOpacity
+                    style={[styles.modalButton, styles.cancelButton, { borderColor: theme.border }]}
+                    onPress={cancelBulkAdd}
+                  >
+                    <Text style={[styles.modalButtonText, { color: theme.text }]}>Cancel</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.modalButton, styles.primaryButton, { backgroundColor: theme.primary }]}
+                    onPress={parseBulkText}
+                  >
+                    <Text style={[styles.modalButtonText, { color: '#fff' }]}>
+                      Preview Items
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <>
+                <Text style={{ color: theme.textSecondary, marginBottom: 10 }}>
+                  Tap an item to remove it before adding
+                </Text>
+
+                <ScrollView
+                  style={{
+                    maxHeight: 180,
+                    marginBottom: 12,
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    borderRadius: 8,
+                    padding: 10,
+                    backgroundColor: theme.background,
+                  }}
+                >
+                  {stagedItems.map((item, idx) => (
+                    <TouchableOpacity
+                      key={`${item}-${idx}`}
+                      onPress={() => removeStagedItem(idx)}
+                      style={{ paddingVertical: 6 }}
+                    >
+                      <Text style={{ color: theme.text }}>• {item}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+
+                <View style={styles.bulkButtonGrid}>
+                  <TouchableOpacity
+                    style={[styles.bulkButton, styles.cancelButton, { borderColor: theme.border }]}
+                    onPress={rejectBulkAdd}
+                  >
+                    <Text style={[styles.bulkButtonText, { color: theme.text }]}>Reject</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.bulkButton, styles.cancelButton, { borderColor: theme.border }]}
+                    onPress={cancelBulkAdd}
+                  >
+                    <Text style={[styles.bulkButtonText, { color: theme.text }]}>Cancel</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.bulkButton, styles.primaryButton, { backgroundColor: theme.primary }]}
+                    onPress={cleanStagedItems}
+                  >
+                    <Text style={[styles.bulkButtonText, { color: '#fff' }]}>Clean</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.bulkButton, styles.primaryButton, { backgroundColor: theme.success }]}
+                    onPress={acceptBulkAdd}
+                  >
+                    <Text style={[styles.bulkButtonText, { color: '#fff' }]}>
+                      Add {stagedItems.length}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  headerButton: {
-    padding: 10,
-  },
-
-  /* Stats Bar */
-  statsBar: {
-    flexDirection: 'row',
-    padding: 10,
+  container: { flex: 1 },
+  headerButton: { padding: 10 },
+  
+  // Filter styles
+  filterContainer: {
+    paddingVertical: 10,
+    paddingHorizontal: 15,
     borderBottomWidth: 1,
   },
-  statButton: {
-    flex: 1,
+  filterButton: {
+    paddingHorizontal: 16,
     paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    marginHorizontal: 4,
-    alignItems: 'center',
-  },
-  statText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-
-  /* Sort Bar */
-  sortContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 10,
-    paddingTop: 5,
-    borderBottomWidth: 1,
-  },
-  sortLabel: {
-    fontSize: 14,
-    marginRight: 10,
-  },
-  sortButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 6,
+    borderRadius: 20,
     marginRight: 8,
     borderWidth: 1,
+    borderColor: '#ccc',
   },
-  sortText: {
-    fontSize: 13,
+  filterButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 
-  listContainer: {
+  // List styles
+  listContainer: { 
     padding: 15,
+    flexGrow: 1,
   },
-
-  /* Empty State */
   emptyContainer: {
-    alignItems: 'center',
+    flex: 1,
     justifyContent: 'center',
-    paddingVertical: 100,
+    alignItems: 'center',
+    paddingTop: 60,
   },
   emptyText: {
     fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 20,
+    fontWeight: '600',
+    marginTop: 16,
   },
   emptySubtext: {
     fontSize: 14,
-    marginTop: 5,
+    marginTop: 8,
   },
 
-  /* FAB */
+  // FAB styles
   fab: {
     position: 'absolute',
     right: 20,
@@ -513,124 +659,147 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
+    elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 8,
+    shadowRadius: 4,
   },
 
-  /* Modal */
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    borderRadius: 10,
-    padding: 20,
-    width: '85%',
-    maxWidth: 400,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 15,
-  },
-
-  /* Priority UI */
-  prioritySection: {
-    marginBottom: 15,
-  },
-  sectionLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  priorityButtons: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  priorityButton: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderRadius: 8,
-    borderWidth: 2,
-    alignItems: 'center',
-  },
-  priorityButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-
-  modalInput: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    marginBottom: 12,
-  },
-  descriptionInput: {
-    height: 80,
-    textAlignVertical: 'top',
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  modalButton: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  cancelButton: {
-    marginRight: 10,
-  },
-  createButton: {},
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  createButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-
-  /* Menu */
+  // Menu styles
   menuOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0,0,0,0.3)',
     justifyContent: 'flex-start',
     alignItems: 'flex-end',
     paddingTop: Platform.OS === 'ios' ? 100 : 60,
     paddingRight: 10,
   },
   menuContent: {
-    borderRadius: 10,
-    minWidth: 200,
+    borderRadius: 8,
+    elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
-    elevation: 5,
+    minWidth: 200,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 15,
+    padding: 16,
+    gap: 12,
   },
-  menuText: {
+  menuItemText: {
     fontSize: 16,
-    marginLeft: 15,
     fontWeight: '500',
   },
 
-  /* Dragging */
-  dragging: {
-    opacity: 0.5,
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '90%',
+    maxWidth: 400,
+    borderRadius: 12,
+    padding: 20,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    fontSize: 16,
+  },
+
+  // Priority selector styles
+  priorityLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+    marginTop: 4,
+  },
+  priorityContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+  priorityButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
+  priorityButtonActive: {
+    borderColor: 'transparent',
+  },
+  priorityButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
+  // Modal button styles
+  modalButtonRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 8,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+  },
+  primaryButton: {
+    borderWidth: 0,
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
+  menuDivider: {
+    height: 1,
+    marginHorizontal: 12,
+  },
+
+  // Bulk button styles
+  bulkButtonGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  bulkButton: {
+    flex: 1,
+    minWidth: '45%',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bulkButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
