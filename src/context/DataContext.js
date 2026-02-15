@@ -81,25 +81,22 @@ export const DataProvider = ({ children }) => {
     dueDate = null,
     priority = 'medium'
   ) => {
-    setLists(prevLists =>
-      prevLists.map(list => {
-        if (list.id === listId) {
-          const newItem = {
-            id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, // unique
-            title,
-            description,
-            completed: false,
-            createdAt: Date.now(),
-            dueDate,
-            priority,
-          };
-          return { ...list, items: [...list.items, newItem] };
-        }
-        return list;
-      })
-    );
+    setLists(lists.map(list => {
+      if (list.id === listId) {
+        const newItem = {
+          id: Date.now().toString(),
+          title,
+          description,
+          completed: false,
+          createdAt: Date.now(),
+          dueDate,
+          priority,
+        };
+        return { ...list, items: [...list.items, newItem] };
+      }
+      return list;
+    }));
   };
-
 
   // Update item
   const updateItem = (listId, itemId, updates) => {
