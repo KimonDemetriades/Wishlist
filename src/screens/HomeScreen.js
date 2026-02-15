@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -11,13 +11,34 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../context/DataContext';
+import { useTheme } from '../context/ThemeContext';
 
 export default function HomeScreen({ navigation }) {
   const { lists, createList, deleteList, renameList } = useData();
+  const { theme, isDark, toggleTheme } = useTheme();
+
   const [modalVisible, setModalVisible] = useState(false);
   const [listName, setListName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [editingListId, setEditingListId] = useState(null);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      title: 'My Lists',
+      headerStyle: { backgroundColor: theme.card },
+      headerTintColor: theme.text,
+      headerTitleStyle: { color: theme.text, fontWeight: 'bold'},
+      headerRight: () => (
+        <TouchableOpacity onPress={toggleTheme} style={{ paddingRight: 12 }}>
+          <Ionicons
+            name={isDark ? 'sunny-outline' : 'moon-outline'}
+            size={24}
+            color={theme.primary}
+          />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, theme, isDark]);
 
   const handleCreateList = () => {
     if (listName.trim()) {
@@ -71,37 +92,54 @@ export default function HomeScreen({ navigation }) {
     const stats = getListStats(item);
     return (
       <TouchableOpacity
-        style={styles.listCard}
+        style={[
+          styles.listCard,
+          { backgroundColor: theme.card, borderColor: theme.border }
+        ]}
         onPress={() => navigation.navigate('ListDetail', { listId: item.id })}
       >
         <View style={styles.listCardContent}>
           <View style={styles.listHeader}>
-            <Text style={styles.listName}>{item.name}</Text>
+            <Text style={[styles.listName, { color: theme.text }]}>
+              {item.name}
+            </Text>
+
             <View style={styles.listActions}>
               <TouchableOpacity
                 onPress={() => handleEditList(item)}
                 style={styles.iconButton}
               >
-                <Ionicons name="pencil" size={20} color="#666" />
+                <Ionicons name="pencil" size={20} color={theme.textSecondary} />
               </TouchableOpacity>
+
               <TouchableOpacity
                 onPress={() => handleDeleteList(item.id)}
                 style={styles.iconButton}
               >
-                <Ionicons name="trash" size={20} color="#FF3B30" />
+                <Ionicons name="trash" size={20} color={theme.danger} />
               </TouchableOpacity>
             </View>
           </View>
+
           <View style={styles.statsContainer}>
-            <Text style={styles.statsText}>
+            <Text style={[styles.statsText, { color: theme.textSecondary }]}>
               {stats.completed}/{stats.total} completed
             </Text>
+
             {stats.total > 0 && (
-              <View style={styles.progressBar}>
+              <View
+                style={[
+                  styles.progressBar,
+                  { backgroundColor: theme.border }
+                ]}
+              >
                 <View
                   style={[
                     styles.progressFill,
-                    { width: `${(stats.completed / stats.total) * 100}%` },
+                    {
+                      width: `${(stats.completed / stats.total) * 100}%`,
+                      backgroundColor: theme.success,
+                    }
                   ]}
                 />
               </View>
@@ -113,19 +151,31 @@ export default function HomeScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+
       {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
+      <View
+        style={[
+          styles.searchContainer,
+          { backgroundColor: theme.card, shadowColor: theme.isDark ? '#000' : '#000' }
+        ]}
+      >
+        <Ionicons name="search" size={20} color={theme.textSecondary} style={styles.searchIcon} />
+
         <TextInput
-          style={styles.searchInput}
+          style={[
+            styles.searchInput,
+            { color: theme.text }
+          ]}
           placeholder="Search lists and items..."
+          placeholderTextColor={theme.textSecondary}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
+
         {searchQuery.length > 0 && (
           <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Ionicons name="close-circle" size={20} color="#999" />
+            <Ionicons name="close-circle" size={20} color={theme.textSecondary} />
           </TouchableOpacity>
         )}
       </View>
@@ -138,16 +188,20 @@ export default function HomeScreen({ navigation }) {
         contentContainerStyle={styles.listContainer}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="list-outline" size={80} color="#ccc" />
-            <Text style={styles.emptyText}>No lists yet</Text>
-            <Text style={styles.emptySubtext}>Tap the + button to create one</Text>
+            <Ionicons name="list-outline" size={80} color={theme.border} />
+            <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+              No lists yet
+            </Text>
+            <Text style={[styles.emptySubtext, { color: theme.textSecondary }]}>
+              Tap the + button to create one
+            </Text>
           </View>
         }
       />
 
       {/* Add Button */}
       <TouchableOpacity
-        style={styles.fab}
+        style={[styles.fab, { backgroundColor: theme.primary }]}
         onPress={() => {
           setEditingListId(null);
           setListName('');
@@ -160,38 +214,59 @@ export default function HomeScreen({ navigation }) {
       {/* Create/Edit List Modal */}
       <Modal
         animationType="slide"
-        transparent={true}
+        transparent
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
+          <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>
               {editingListId ? 'Rename List' : 'New List'}
             </Text>
+
             <TextInput
-              style={styles.modalInput}
+              style={[
+                styles.modalInput,
+                {
+                  backgroundColor: theme.card,
+                  color: theme.text,
+                  borderColor: theme.border,
+                }
+              ]}
               placeholder="List name"
+              placeholderTextColor={theme.textSecondary}
               value={listName}
               onChangeText={setListName}
               autoFocus
             />
+
             <View style={styles.modalButtons}>
               <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
+                style={[
+                  styles.modalButton,
+                  styles.cancelButton,
+                  { backgroundColor: theme.border + '33' }
+                ]}
                 onPress={() => {
                   setModalVisible(false);
                   setListName('');
                   setEditingListId(null);
                 }}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={[styles.cancelButtonText, { color: theme.text }]}>
+                  Cancel
+                </Text>
               </TouchableOpacity>
+
               <TouchableOpacity
-                style={[styles.modalButton, styles.createButton]}
+                style={[
+                  styles.modalButton,
+                  styles.createButton,
+                  { backgroundColor: theme.primary }
+                ]}
                 onPress={handleCreateList}
               >
-                <Text style={styles.createButtonText}>
+                <Text style={[styles.createButtonText, { color: '#fff' }]}>
                   {editingListId ? 'Save' : 'Create'}
                 </Text>
               </TouchableOpacity>
@@ -199,6 +274,7 @@ export default function HomeScreen({ navigation }) {
           </View>
         </View>
       </Modal>
+
     </View>
   );
 }
@@ -206,18 +282,16 @@ export default function HomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
+
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
     margin: 15,
     marginBottom: 10,
     paddingHorizontal: 15,
     paddingVertical: 10,
     borderRadius: 10,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -230,15 +304,16 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
   },
+
   listContainer: {
     padding: 15,
     paddingTop: 5,
   },
+
   listCard: {
-    backgroundColor: '#fff',
     borderRadius: 10,
     marginBottom: 15,
-    shadowColor: '#000',
+    borderWidth: 1,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -256,7 +331,6 @@ const styles = StyleSheet.create({
   listName: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
     flex: 1,
   },
   listActions: {
@@ -266,24 +340,23 @@ const styles = StyleSheet.create({
     padding: 5,
     marginLeft: 10,
   },
+
   statsContainer: {
     marginTop: 5,
   },
   statsText: {
     fontSize: 14,
-    color: '#666',
     marginBottom: 8,
   },
   progressBar: {
     height: 6,
-    backgroundColor: '#e0e0e0',
     borderRadius: 3,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#4CAF50',
   },
+
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -292,14 +365,13 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#999',
     marginTop: 20,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#bbb',
     marginTop: 5,
   },
+
   fab: {
     position: 'absolute',
     right: 20,
@@ -307,7 +379,6 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#2196F3',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -316,6 +387,7 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 8,
   },
+
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -323,7 +395,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#fff',
     borderRadius: 10,
     padding: 20,
     width: '80%',
@@ -333,11 +404,9 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 15,
-    color: '#333',
   },
   modalInput: {
     borderWidth: 1,
-    borderColor: '#ddd',
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
@@ -354,19 +423,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelButton: {
-    backgroundColor: '#f0f0f0',
     marginRight: 10,
   },
-  createButton: {
-    backgroundColor: '#2196F3',
-  },
+  createButton: {},
   cancelButtonText: {
-    color: '#666',
     fontSize: 16,
     fontWeight: '600',
   },
   createButtonText: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },

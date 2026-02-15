@@ -8,9 +8,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../context/DataContext';
+import { useTheme } from '../context/ThemeContext';
 
 export default function TaskItem({ item, listId, onEdit }) {
   const { toggleItem, deleteItem } = useData();
+  const { theme } = useTheme();
 
   const handleDelete = () => {
     Alert.alert(
@@ -42,7 +44,7 @@ export default function TaskItem({ item, listId, onEdit }) {
     return new Date(dueDate) < new Date() && !item.completed;
   };
 
-  // 🔥 NEW: Priority colors
+  // Priority colors stay bright in both themes
   const priorityColors = {
     high: '#FF3B30',
     medium: '#FF9500',
@@ -50,8 +52,17 @@ export default function TaskItem({ item, listId, onEdit }) {
   };
 
   return (
-    <View style={styles.container}>
-      {/* 🔥 NEW: Priority bar */}
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: theme.card,
+          borderColor: theme.border,
+          shadowColor: theme.isDark ? '#000' : '#000',
+        },
+      ]}
+    >
+      {/* Priority bar */}
       <View
         style={[
           styles.priorityBar,
@@ -59,6 +70,7 @@ export default function TaskItem({ item, listId, onEdit }) {
         ]}
       />
 
+      {/* Checkbox */}
       <TouchableOpacity
         style={styles.checkbox}
         onPress={() => toggleItem(listId, item.id)}
@@ -66,25 +78,32 @@ export default function TaskItem({ item, listId, onEdit }) {
         <Ionicons
           name={item.completed ? 'checkmark-circle' : 'ellipse-outline'}
           size={28}
-          color={item.completed ? '#4CAF50' : '#999'}
+          color={
+            item.completed
+              ? theme.success
+              : theme.textSecondary
+          }
         />
       </TouchableOpacity>
 
+      {/* Content */}
       <View style={styles.content}>
         <Text
           style={[
             styles.title,
-            item.completed && styles.completedText,
+            { color: theme.text },
+            item.completed && { color: theme.textSecondary, textDecorationLine: 'line-through' }
           ]}
         >
           {item.title}
         </Text>
-        
+
         {item.description ? (
           <Text
             style={[
               styles.description,
-              item.completed && styles.completedText,
+              { color: theme.textSecondary },
+              item.completed && { color: theme.textSecondary, textDecorationLine: 'line-through' }
             ]}
             numberOfLines={2}
           >
@@ -97,12 +116,13 @@ export default function TaskItem({ item, listId, onEdit }) {
             <Ionicons
               name="calendar-outline"
               size={14}
-              color={isOverdue(item.dueDate) ? '#FF3B30' : '#666'}
+              color={isOverdue(item.dueDate) ? theme.danger : theme.textSecondary}
             />
             <Text
               style={[
                 styles.dueDate,
-                isOverdue(item.dueDate) && styles.overdue,
+                { color: theme.textSecondary },
+                isOverdue(item.dueDate) && { color: theme.danger, fontWeight: '600' }
               ]}
             >
               {formatDate(item.dueDate)}
@@ -111,12 +131,13 @@ export default function TaskItem({ item, listId, onEdit }) {
         )}
       </View>
 
+      {/* Actions */}
       <View style={styles.actions}>
         <TouchableOpacity onPress={onEdit} style={styles.actionButton}>
-          <Ionicons name="pencil" size={20} color="#2196F3" />
+          <Ionicons name="pencil" size={20} color={theme.primary} />
         </TouchableOpacity>
         <TouchableOpacity onPress={handleDelete} style={styles.actionButton}>
-          <Ionicons name="trash" size={20} color="#FF3B30" />
+          <Ionicons name="trash" size={20} color={theme.danger} />
         </TouchableOpacity>
       </View>
     </View>
@@ -127,19 +148,17 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#fff',
     borderRadius: 10,
     padding: 12,
-    paddingLeft: 16, // 🔥 NEW: space for priority bar
+    paddingLeft: 16, // space for priority bar
     marginBottom: 10,
-    shadowColor: '#000',
+    borderWidth: 1,
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.15,
     shadowRadius: 2,
     elevation: 2,
   },
 
-  // 🔥 NEW: Priority bar style
   priorityBar: {
     position: 'absolute',
     left: 0,
@@ -154,42 +173,38 @@ const styles = StyleSheet.create({
     paddingTop: 2,
     paddingRight: 12,
   },
+
   content: {
     flex: 1,
   },
+
   title: {
     fontSize: 16,
-    color: '#333',
     fontWeight: '500',
     marginBottom: 4,
   },
+
   description: {
     fontSize: 14,
-    color: '#666',
     marginBottom: 6,
   },
-  completedText: {
-    textDecorationLine: 'line-through',
-    color: '#999',
-  },
+
   dueDateContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 4,
   },
+
   dueDate: {
     fontSize: 12,
-    color: '#666',
     marginLeft: 4,
   },
-  overdue: {
-    color: '#FF3B30',
-    fontWeight: '600',
-  },
+
   actions: {
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
+
   actionButton: {
     padding: 6,
     marginLeft: 4,

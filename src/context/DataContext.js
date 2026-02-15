@@ -73,13 +73,13 @@ export const DataProvider = ({ children }) => {
     ));
   };
 
-  // Add item to a list — UPDATED FOR PRIORITY
+  // Add item to a list — supports priority
   const addItem = (
     listId,
     title,
     description = '',
     dueDate = null,
-    priority = 'medium'   // ← NEW PARAMETER
+    priority = 'medium'
   ) => {
     setLists(lists.map(list => {
       if (list.id === listId) {
@@ -90,7 +90,7 @@ export const DataProvider = ({ children }) => {
           completed: false,
           createdAt: Date.now(),
           dueDate,
-          priority,        // ← NEW FIELD
+          priority,
         };
         return { ...list, items: [...list.items, newItem] };
       }
@@ -98,7 +98,7 @@ export const DataProvider = ({ children }) => {
     }));
   };
 
-  // Update item (already supports priority via updates object)
+  // Update item
   const updateItem = (listId, itemId, updates) => {
     setLists(lists.map(list => {
       if (list.id === listId) {
@@ -154,7 +154,7 @@ export const DataProvider = ({ children }) => {
     }));
   };
 
-  // Reorder items
+  // 🔥 NEW: Reorder items (drag & drop)
   const reorderItems = (listId, newItemsOrder) => {
     setLists(lists.map(list => {
       if (list.id === listId) {
@@ -175,7 +175,7 @@ export const DataProvider = ({ children }) => {
     toggleItem,
     deleteItem,
     clearCompleted,
-    reorderItems,
+    reorderItems, // 🔥 Make available to UI
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
