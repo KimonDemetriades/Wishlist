@@ -789,17 +789,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-  },
+    marginTop: 8,
+    },
   bulkButton: {
-    flex: 1,
-    minWidth: '45%',
+    flexBasis: '48%',
+    flexGrow: 0,
+    flexShrink: 0,
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bulkButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
+
 });
