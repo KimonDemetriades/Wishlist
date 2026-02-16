@@ -231,7 +231,6 @@ export default function ListDetailScreen({ route, navigation }) {
         return aP - bP;
       });
     }
-    
     return filtered;
   };
 
@@ -392,33 +391,36 @@ export default function ListDetailScreen({ route, navigation }) {
         </ScrollView>
       </View>
 
-      {/* TASK LIST */}
-      <DraggableFlatList
-        data={filteredItems}
-        keyExtractor={item => item.id}
-        onDragEnd={({ data }) => reorderItems(listId, data)}
-        contentContainerStyle={styles.listContainer}
-        renderItem={({ item, drag, isActive }) => (
-          <TouchableOpacity 
-            onLongPress={drag} 
-            disabled={isActive}
-            onPress={() => handleEditItem(item)}
-          >
-            <TaskItem item={item} listId={listId} />
-          </TouchableOpacity>
-        )}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="list-outline" size={64} color={theme.textSecondary} />
-            <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-              No items in this list
-            </Text>
-            <Text style={[styles.emptySubtext, { color: theme.textSecondary }]}>
-              Tap + to add an item
-            </Text>
-          </View>
-        }
-      />
+      {/* TASK LIST - Scrollable Container */}
+      <View style={styles.listWrapper}>
+        <DraggableFlatList
+          data={filteredItems}
+          keyExtractor={item => item.id}
+          onDragEnd={({ data }) => reorderItems(listId, data)}
+          contentContainerStyle={styles.listContainer}
+          renderItem={({ item, drag, isActive }) => (
+            <View style={isActive && { opacity: 0.5 }}>
+              <TaskItem 
+                item={item} 
+                listId={listId} 
+                onEdit={() => handleEditItem(item)}
+                onLongPress={drag}
+              />
+            </View>
+          )}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Ionicons name="list-outline" size={64} color={theme.textSecondary} />
+              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+                No items in this list
+              </Text>
+              <Text style={[styles.emptySubtext, { color: theme.textSecondary }]}>
+                Tap + to add an item
+              </Text>
+            </View>
+          }
+        />
+      </View>
 
       {/* BULK ADD FAB */}
       <TouchableOpacity
@@ -783,6 +785,18 @@ const styles = StyleSheet.create({
   filterButtonText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+
+  // List wrapper (constrains list height for scrolling)
+  listWrapper: {
+    flex: 1,
+    marginBottom: 150, // Space for FAB buttons
+  },
+
+  // List styles (your existing code continues)
+  listContainer: { 
+    padding: 15,
+    flexGrow: 1,
   },
 
   // List styles

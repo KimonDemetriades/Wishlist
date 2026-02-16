@@ -10,7 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../context/DataContext';
 import { useTheme } from '../context/ThemeContext';
 
-export default function TaskItem({ item, listId, onEdit }) {
+export default function TaskItem({ item, listId, onEdit, onLongPress }) {
   const { toggleItem, deleteItem } = useData();
   const { theme } = useTheme();
 
@@ -62,85 +62,92 @@ export default function TaskItem({ item, listId, onEdit }) {
         },
       ]}
     >
-      {/* Priority bar */}
-      <View
-        style={[
-          styles.priorityBar,
-          { backgroundColor: priorityColors[item.priority || 'medium'] }
-        ]}
-      />
-
-      {/* Checkbox */}
-      <TouchableOpacity
-        style={styles.checkbox}
-        onPress={() => toggleItem(listId, item.id)}
-      >
-        <Ionicons
-          name={item.completed ? 'checkmark-circle' : 'ellipse-outline'}
-          size={28}
-          color={
-            item.completed
-              ? theme.success
-              : theme.textSecondary
-          }
-        />
-      </TouchableOpacity>
-
-      {/* Content */}
-      <View style={styles.content}>
-        <Text
+        {/* Priority bar */}
+        <View
           style={[
-            styles.title,
-            { color: theme.text },
-            item.completed && { color: theme.textSecondary, textDecorationLine: 'line-through' }
+            styles.priorityBar,
+            { backgroundColor: priorityColors[item.priority || 'medium'] }
           ]}
-        >
-          {item.title}
-        </Text>
+        />
 
-        {item.description ? (
+        {/* Checkbox */}
+        <TouchableOpacity
+          style={styles.checkbox}
+          onPress={() => toggleItem(listId, item.id)}
+        >
+          <Ionicons
+            name={item.completed ? 'checkmark-circle' : 'ellipse-outline'}
+            size={28}
+            color={
+              item.completed
+                ? theme.success
+                : theme.textSecondary
+            }
+          />
+        </TouchableOpacity>
+
+        {/* Content */}
+        <View style={styles.content}>
           <Text
             style={[
-              styles.description,
-              { color: theme.textSecondary },
+              styles.title,
+              { color: theme.text },
               item.completed && { color: theme.textSecondary, textDecorationLine: 'line-through' }
             ]}
-            numberOfLines={2}
           >
-            {item.description}
+            {item.title}
           </Text>
-        ) : null}
 
-        {item.dueDate && (
-          <View style={styles.dueDateContainer}>
-            <Ionicons
-              name="calendar-outline"
-              size={14}
-              color={isOverdue(item.dueDate) ? theme.danger : theme.textSecondary}
-            />
+          {item.description ? (
             <Text
               style={[
-                styles.dueDate,
+                styles.description,
                 { color: theme.textSecondary },
-                isOverdue(item.dueDate) && { color: theme.danger, fontWeight: '600' }
+                item.completed && { color: theme.textSecondary, textDecorationLine: 'line-through' }
               ]}
+              numberOfLines={2}
             >
-              {formatDate(item.dueDate)}
+              {item.description}
             </Text>
-          </View>
-        )}
-      </View>
+          ) : null}
 
-      {/* Actions */}
-      <View style={styles.actions}>
-        <TouchableOpacity onPress={onEdit} style={styles.actionButton}>
-          <Ionicons name="pencil" size={20} color={theme.primary} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={handleDelete} style={styles.actionButton}>
-          <Ionicons name="trash" size={20} color={theme.danger} />
-        </TouchableOpacity>
+          {item.dueDate && (
+            <View style={styles.dueDateContainer}>
+              <Ionicons
+                name="calendar-outline"
+                size={14}
+                color={isOverdue(item.dueDate) ? theme.danger : theme.textSecondary}
+              />
+              <Text
+                style={[
+                  styles.dueDate,
+                  { color: theme.textSecondary },
+                  isOverdue(item.dueDate) && { color: theme.danger, fontWeight: '600' }
+                ]}
+              >
+                {formatDate(item.dueDate)}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Actions */}
+        <View style={styles.actions}>
+          <TouchableOpacity 
+            onLongPress={onLongPress}
+            delayLongPress={200}
+            style={styles.actionButton}
+          >
+            <Ionicons name="reorder-three" size={22} color={theme.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onEdit} style={styles.actionButton}>
+            <Ionicons name="pencil" size={20} color={theme.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleDelete} style={styles.actionButton}>
+            <Ionicons name="trash" size={20} color={theme.danger} />
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
   );
 }
 
