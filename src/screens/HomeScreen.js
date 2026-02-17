@@ -152,6 +152,22 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
+	  {/* Top App Bar (above status bar) */}
+	  <View style={{
+	    paddingTop: 20, // pushes below status bar
+	    paddingBottom: 12,
+	    alignItems: 'center',
+	    backgroundColor: theme.card,
+	  }}>
+	    <Text style={{ 
+		  fontSize: 20, 
+		  fontWeight: 'bold', 
+		  color: theme.text 
+	    }}>
+		  * List Happens *
+	    </Text>
+	  </View>
+
 
       {/* Search Bar */}
       <View

@@ -9,12 +9,14 @@ import {
   Alert,
   Platform,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../context/DataContext';
 import TaskItem from '../components/TaskItem';
 import DraggableFlatList from 'react-native-draggable-flatlist';
 import { useTheme } from '../context/ThemeContext';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 export default function ListDetailScreen({ route, navigation }) {
   const { listId } = route.params;
@@ -30,6 +32,7 @@ export default function ListDetailScreen({ route, navigation }) {
   const [itemDueDate, setItemDueDate] = useState(null);
   const [itemPriority, setItemPriority] = useState('medium');
   const [editingItemId, setEditingItemId] = useState(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Bulk add modal state
   const [bulkModalVisible, setBulkModalVisible] = useState(false);
@@ -99,6 +102,13 @@ export default function ListDetailScreen({ route, navigation }) {
     setItemDueDate(item.dueDate);
     setItemPriority(item.priority || 'medium');
     setModalVisible(true);
+  };
+
+  // Format date for display
+  const formatDate = (timestamp) => {
+    if (!timestamp) return null;
+    const date = new Date(timestamp);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
   // BULK ADD FUNCTIONS
@@ -222,7 +232,8 @@ export default function ListDetailScreen({ route, navigation }) {
     if (sortMode === 'alpha') {
       filtered.sort((a, b) => a.title.localeCompare(b.title));
     } else if (sortMode === 'date') {
-      filtered.sort((a, b) => b.createdAt - a.createdAt);
+      //filtered.sort((a, b) => b.createdAt - a.createdAt);
+	  filtered.sort((a, b) => (a.dueDate || 0) - (b.dueDate || 0));
     } else if (sortMode === 'priority') {
       const priorityOrder = { high: 0, medium: 1, low: 2 };
       filtered.sort((a, b) => {
@@ -582,6 +593,37 @@ export default function ListDetailScreen({ route, navigation }) {
               </TouchableOpacity>
             </View>
 
+            {/* DUE DATE PICKER */}
+            <Text style={[styles.priorityLabel, { color: theme.text }]}>Due Date:</Text>
+            <TouchableOpacity
+              style={[styles.dateButton, { borderColor: theme.border }]}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <Ionicons name="calendar-outline" size={20} color={theme.primary} />
+              <Text style={[styles.dateButtonText, { color: itemDueDate ? theme.text : theme.textSecondary }]}>
+                {itemDueDate ? formatDate(itemDueDate) : 'No due date'}
+              </Text>
+              {itemDueDate && (
+                <TouchableOpacity onPress={() => setItemDueDate(null)} style={styles.clearDateButton}>
+                  <Ionicons name="close-circle" size={18} color={theme.textSecondary} />
+                </TouchableOpacity>
+              )}
+            </TouchableOpacity>
+
+            {showDatePicker && (
+              <DateTimePicker
+                value={itemDueDate ? new Date(itemDueDate) : new Date()}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={(event, selectedDate) => {
+                  setShowDatePicker(false);
+                  if (selectedDate) {
+                    setItemDueDate(selectedDate.getTime());
+                  }
+                }}
+              />
+            )}
+
             <View style={styles.modalButtonRow}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.cancelButton, { borderColor: theme.border }]}
@@ -923,6 +965,24 @@ const styles = StyleSheet.create({
   priorityButtonText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+
+  // Date picker styles
+  dateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 16,
+    gap: 10,
+  },
+  dateButtonText: {
+    flex: 1,
+    fontSize: 16,
+  },
+  clearDateButton: {
+    padding: 4,
   },
 
   // Modal button styles
