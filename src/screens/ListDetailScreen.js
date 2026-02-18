@@ -16,6 +16,7 @@ import { useData } from '../context/DataContext';
 import TaskItem from '../components/TaskItem';
 import DraggableFlatList from 'react-native-draggable-flatlist';
 import { useTheme } from '../context/ThemeContext';
+import { OCRService } from '../services/OCRService';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 export default function ListDetailScreen({ route, navigation }) {
@@ -38,6 +39,10 @@ export default function ListDetailScreen({ route, navigation }) {
   const [bulkModalVisible, setBulkModalVisible] = useState(false);
   const [bulkText, setBulkText] = useState('');
   const [stagedItems, setStagedItems] = useState([]);
+
+  // OCR at top with other state
+  const [imagePickerVisible, setImagePickerVisible] = useState(false);
+  const [ocrLoading, setOcrLoading] = useState(false);
   
   // Menu and filter state
   const [filterMode, setFilterMode] = useState('all'); // 'all', 'active', 'completed'
@@ -158,6 +163,31 @@ export default function ListDetailScreen({ route, navigation }) {
 
   const removeStagedItem = (index) => {
     setStagedItems(items => items.filter((_, i) => i !== index));
+  };
+
+  // OCR function / handlers
+  const handleOCRImage = async (source) => {
+    setImagePickerVisible(false);
+    setOcrLoading(true);
+    
+    try {
+      console.log('Starting OCR with source:', source);
+	  const items = await OCRService.processImage(source);
+	  console.log('OCR items:', items);
+      
+      if (items && items.length > 0) {
+        // Feed directly into existing bulk add flow
+        setStagedItems(items);
+        setBulkModalVisible(true);
+      } else {
+        Alert.alert('No Text Found', 'Could not extract text from the image.');
+      }
+    } catch (error) {
+      console.error('OCR Error:', error);
+	  Alert.alert('Error', 'Failed to process image: ' + error.message);
+    } finally {
+      setOcrLoading(false);
+    }
   };
 
   // MENU FUNCTIONS
@@ -432,6 +462,23 @@ export default function ListDetailScreen({ route, navigation }) {
           }
         />
       </View>
+
+	  {/* OCR/IMAGE ADD FAB - ADD THIS */}
+	  <TouchableOpacity
+	    style={[
+		  styles.fab,
+		  {
+		    bottom: 160,  // Above bulk add button
+		    width: 50,
+		    height: 50,
+		    borderRadius: 25,
+		    backgroundColor: '#8B5CF6',  // Purple color
+		  },
+	    ]}
+	    onPress={() => setImagePickerVisible(true)}
+	  >
+	    <Ionicons name="camera" size={24} color="#fff" />
+	  </TouchableOpacity>
 
       {/* BULK ADD FAB */}
       <TouchableOpacity
@@ -760,6 +807,63 @@ export default function ListDetailScreen({ route, navigation }) {
         </View>
       </Modal>
 
+      {/* IMAGE SOURCE PICKER MODAL */}
+      <Modal
+        transparent
+        animationType="fade"
+        visible={imagePickerVisible}
+        onRequestClose={() => setImagePickerVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setImagePickerVisible(false)}
+        >
+          <View style={[styles.imagePickerContent, { backgroundColor: theme.card }]}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>
+              Choose Image Source
+            </Text>
+            
+            <TouchableOpacity
+              style={[styles.imagePickerButton, { borderColor: theme.border }]}
+              onPress={() => handleOCRImage('camera')}
+            >
+              <Ionicons name="camera" size={24} color={theme.primary} />
+              <Text style={[styles.imagePickerText, { color: theme.text }]}>
+                Take Photo
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.imagePickerButton, { borderColor: theme.border }]}
+              onPress={() => handleOCRImage('gallery')}
+            >
+              <Ionicons name="images" size={24} color={theme.primary} />
+              <Text style={[styles.imagePickerText, { color: theme.text }]}>
+                Choose from Gallery
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.modalButton, styles.cancelButton, { borderColor: theme.border }]}
+              onPress={() => setImagePickerVisible(false)}
+            >
+              <Text style={[styles.modalButtonText, { color: theme.text }]}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* LOADING OVERLAY - SHOW DURING OCR */}
+      {ocrLoading && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color={theme.primary} />
+          <Text style={[styles.loadingText, { color: '#fff' }]}>
+            Processing image...
+          </Text>
+        </View>
+      )}
+
     </View>
   );
 }
@@ -992,11 +1096,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   modalButton: {
-    flex: 1,
+    //flex: 1,
     paddingVertical: 14,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
+	//height: 48, // <— consistent height
   },
   cancelButton: {
     backgroundColor: 'transparent',
@@ -1030,6 +1135,43 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  // Image picker modal styles
+  imagePickerContent: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    margin: 20,
+    alignItems: 'stretch',
+  },
+  imagePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 12,
+    gap: 12,
+	//height: 48, // <— consistent height
+  },
+  imagePickerText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+
+  // Loading overlay
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    fontWeight: '500',
   },
 
 });

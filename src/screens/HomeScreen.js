@@ -12,6 +12,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../context/DataContext';
 import { useTheme } from '../context/ThemeContext';
+import { Image } from 'react-native';
+
 
 export default function HomeScreen({ navigation }) {
   const { lists, createList, deleteList, renameList } = useData();
@@ -152,21 +154,21 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-	  {/* Top App Bar (above status bar) */}
-	  <View style={{
-	    paddingTop: 20, // pushes below status bar
-	    paddingBottom: 12,
-	    alignItems: 'center',
-	    backgroundColor: theme.card,
-	  }}>
-	    <Text style={{ 
-		  fontSize: 20, 
-		  fontWeight: 'bold', 
-		  color: theme.text 
-	    }}>
-		  * List Happens *
-	    </Text>
+
+	  {/* In-app logo (below header, above search bar) */}
+	  <View style={{ alignItems: 'center', marginTop: 20 }}>
+	    <Image
+		  source={require('../../assets/icon_bar.png')}
+		  //style={{ width: 80, height: 80 }}
+		  style={{
+		    width: 200,          // or any width you want
+		    height: undefined,   // let RN calculate height
+		    aspectRatio: 4,      // match your logo’s real ratio
+		  }}
+		  resizeMode="contain"
+	    />
 	  </View>
+
 
 
       {/* Search Bar */}
