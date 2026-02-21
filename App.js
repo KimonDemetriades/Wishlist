@@ -6,9 +6,12 @@ import { createStackNavigator } from '@react-navigation/stack';
 
 import { DataProvider } from './src/context/DataContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
+import { SettingsProvider } from './src/context/SettingsContext';
 
 import HomeScreen from './src/screens/HomeScreen';
 import ListDetailScreen from './src/screens/ListDetailScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
+import AboutScreen from './src/screens/AboutScreen';
 
 const Stack = createStackNavigator();
 
@@ -51,6 +54,16 @@ function AppInner() {
             name="ListDetail"
             component={ListDetailScreen}
           />
+          <Stack.Screen
+            name="Settings"
+            component={SettingsScreen}
+            options={{ title: 'Settings' }}
+          />
+          <Stack.Screen
+            name="About"
+            component={AboutScreen}
+            options={{ title: 'About & Privacy' }}
+          />
         </Stack.Navigator>
       </NavigationContainer>
     </>
@@ -60,9 +73,11 @@ function AppInner() {
 export default function App() {
   return (
     <ThemeProvider>
-      <DataProvider>
-        <AppInner />
-      </DataProvider>
+      <SettingsProvider>
+        <DataProvider>
+          <AppInner />
+        </DataProvider>
+      </SettingsProvider>
     </ThemeProvider>
   );
 }

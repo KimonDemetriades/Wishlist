@@ -18,6 +18,9 @@ import DraggableFlatList from 'react-native-draggable-flatlist';
 import { useTheme } from '../context/ThemeContext';
 import { OCRService } from '../services/OCRService';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useSettings } from '../context/SettingsContext';
+
+
 
 export default function ListDetailScreen({ route, navigation }) {
   const { listId } = route.params;
@@ -51,6 +54,11 @@ export default function ListDetailScreen({ route, navigation }) {
   const [menuVisible, setMenuVisible] = useState(false);
   const [priorityFilter, setPriorityFilter] = useState('all'); // 'all', 'high', 'medium', 'low'
 
+  const { autoClean } = useSettings();
+
+  const WHATSAPP_REGEX = /^[^:]+:\s*/;
+
+  
   useLayoutEffect(() => {
     navigation.setOptions({
       title: list?.name || 'List',
@@ -149,10 +157,22 @@ export default function ListDetailScreen({ route, navigation }) {
 
   const cleanStagedItems = () => {
     const pattern = new RegExp('^(\\[[^\\]]*\\]\\s*)+', 'g');
-    const cleaned = stagedItems.map(item => 
-      item.trimStart().replace(pattern, '') 
-    );
-    setStagedItems(cleaned);
+	
+    //const cleaned = stagedItems.map(item => 
+    //  item.trimStart().replace(pattern, '') 
+    //);
+    
+    const cleaned = stagedItems.map(item => {
+      let line = item.trimStart().replace(pattern, '');
+    // If AutoClean is ON → remove everything before the first colon
+      if (autoClean) {
+        line = line.replace(WHATSAPP_REGEX, '');
+      }
+
+      return line;
+    });
+	
+	setStagedItems(cleaned);
   };
 
   const rejectBulkAdd = () => {
@@ -456,61 +476,51 @@ export default function ListDetailScreen({ route, navigation }) {
                 No items in this list
               </Text>
               <Text style={[styles.emptySubtext, { color: theme.textSecondary }]}>
-                Tap + to add an item
+                Tap + to add an item{'\n'}
+				{'\n'}
+				List icon allows bulk downloads{'\n'}
+				{'\n'}
+				Camera adds items from photos{'\n'}
               </Text>
             </View>
           }
         />
       </View>
 
-	  {/* OCR/IMAGE ADD FAB - ADD THIS */}
-	  <TouchableOpacity
-	    style={[
-		  styles.fab,
-		  {
-		    bottom: 160,  // Above bulk add button
-		    width: 50,
-		    height: 50,
-		    borderRadius: 25,
-		    backgroundColor: '#8B5CF6',  // Purple color
-		  },
-	    ]}
-	    onPress={() => setImagePickerVisible(true)}
-	  >
-	    <Ionicons name="camera" size={24} color="#fff" />
-	  </TouchableOpacity>
+      <View style={styles.fabGroup}>
+        {/* Row: Single + Bulk */}
+        <View style={styles.fabRow}>
+          <TouchableOpacity
+            style={[styles.fab, styles.smallFab, { backgroundColor: theme.success }]}
+            onPress={() => {
+              setEditingItemId(null);
+              setItemTitle('');
+              setItemDescription('');
+              setItemDueDate(null);
+              setItemPriority('medium');
+              setModalVisible(true);
+            }}
+          >
+            <Ionicons name="add" size={24} color="#fff" />
+          </TouchableOpacity>
 
-      {/* BULK ADD FAB */}
-      <TouchableOpacity
-        style={[
-          styles.fab,
-          {
-            bottom: 95,
-            width: 50,
-            height: 50,
-            borderRadius: 25,
-            backgroundColor: theme.primary,
-          },
-        ]}
-        onPress={() => setBulkModalVisible(true)}
-      >
-        <Ionicons name="list-outline" size={24} color="#fff" />
-      </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.fab, styles.smallFab, { backgroundColor: theme.primary }]}
+            onPress={() => setBulkModalVisible(true)}
+          >
+            <Ionicons name="list-outline" size={24} color="#fff" />
+          </TouchableOpacity>
 
-      {/* SINGLE ADD FAB */}
-      <TouchableOpacity
-        style={[styles.fab, { backgroundColor: theme.success }]}
-        onPress={() => {
-          setEditingItemId(null);
-          setItemTitle('');
-          setItemDescription('');
-          setItemDueDate(null);
-          setItemPriority('medium');
-          setModalVisible(true);
-        }}
-      >
-        <Ionicons name="add" size={30} color="#fff" />
-      </TouchableOpacity>
+          {/* Camera */}
+          <TouchableOpacity
+            style={[styles.fab, styles.cameraFab]}
+            onPress={() => setImagePickerVisible(true)}
+          >
+            <Ionicons name="camera" size={24} color="#fff" />
+          </TouchableOpacity>
+		</View>
+      </View>
+
 
       {/* MENU MODAL */}
       <Modal
@@ -845,7 +855,7 @@ export default function ListDetailScreen({ route, navigation }) {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.modalButton, styles.cancelButton, { borderColor: theme.border }]}
+              style={[styles.pickmodalButton, styles.cancelButton, { borderColor: theme.border }]}
               onPress={() => setImagePickerVisible(false)}
             >
               <Text style={[styles.modalButtonText, { color: theme.text }]}>Cancel</Text>
@@ -936,7 +946,7 @@ const styles = StyleSheet.create({
   // List wrapper (constrains list height for scrolling)
   listWrapper: {
     flex: 1,
-    marginBottom: 150, // Space for FAB buttons
+    marginBottom: 100, // Space for FAB buttons
   },
 
   // List styles (your existing code continues)
@@ -964,16 +974,17 @@ const styles = StyleSheet.create({
   emptySubtext: {
     fontSize: 14,
     marginTop: 8,
+	textAlign: 'center',
   },
 
   // FAB styles
   fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    // position: 'absolute',
+    // right: 20,
+    // bottom: 20,
+    // width: 60,
+    // height: 60,
+    // borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 8,
@@ -1095,8 +1106,16 @@ const styles = StyleSheet.create({
     gap: 10,
     marginTop: 8,
   },
-  modalButton: {
+  pickmodalButton: {
     //flex: 1,
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+	//height: 48, // <— consistent height
+  },
+  modalButton: {
+    flex: 1,
     paddingVertical: 14,
     borderRadius: 8,
     alignItems: 'center',
@@ -1173,5 +1192,34 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
+
+  fabGroup: {
+    position: 'absolute',
+	flexDirection: 'row',
+    right: 20,
+    bottom: 30,
+    alignItems: 'center',
+  },
+
+  fabRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 12,
+  },
+
+  smallFab: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+  },
+
+  cameraFab: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#8B5CF6',
+  },
+
+
 
 });

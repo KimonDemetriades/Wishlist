@@ -6,20 +6,25 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./assets/icon.png",
-	"platforms": [
+    "platforms": [
       "ios",
       "android"
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ListHappens.app"
-    },
+      "bundleIdentifier": "com.listhappens.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },	
     "android": {
       "package": "com.ListHappens.app",
-	  "adaptiveIcon": { 
-	    "foregroundImage": "./assets/adaptive-icon.png", 
-		"backgroundColor": "#FFFFFF" }
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      }
     },
+
     "plugins": [
       [
         "expo-build-properties",
@@ -28,12 +33,14 @@
             "newArchEnabled": true
           },
           "ios": {
-            "newArchEnabled": true
+            "newArchEnabled": true,
+            "deploymentTarget": "16.0"
           }
         }
       ],
       "@react-native-community/datetimepicker"
     ],
+
     "extra": {
       "eas": {
         "projectId": "9aacecdf-8b78-4daa-b11c-2a5aefe26693"

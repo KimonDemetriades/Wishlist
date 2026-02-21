@@ -13,6 +13,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../context/DataContext';
 import { useTheme } from '../context/ThemeContext';
 import { Image } from 'react-native';
+import { useColorScheme } from 'react-native';
+
 
 
 export default function HomeScreen({ navigation }) {
@@ -23,6 +25,14 @@ export default function HomeScreen({ navigation }) {
   const [listName, setListName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [editingListId, setEditingListId] = useState(null);
+  const [menuVisible, setMenuVisible] = useState(false);
+  
+  const colorScheme = isDark ? 'dark' : 'light';
+  //console.log("🔄 Theme changed:", colorScheme);
+  const logoSource = colorScheme === 'dark'
+    ? require('../../assets/icon_bar_white.png')
+    : require('../../assets/icon_bar_v0.png');
+
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -31,13 +41,18 @@ export default function HomeScreen({ navigation }) {
       headerTintColor: theme.text,
       headerTitleStyle: { color: theme.text, fontWeight: 'bold'},
       headerRight: () => (
-        <TouchableOpacity onPress={toggleTheme} style={{ paddingRight: 12 }}>
-          <Ionicons
-            name={isDark ? 'sunny-outline' : 'moon-outline'}
-            size={24}
-            color={theme.primary}
-          />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity onPress={toggleTheme} style={{ paddingRight: 12 }}>
+            <Ionicons
+              name={isDark ? 'sunny-outline' : 'moon-outline'}
+              size={24}
+              color={theme.primary}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setMenuVisible(true)} style={{ paddingRight: 12 }}>
+            <Ionicons name="ellipsis-vertical" size={24} color={theme.primary} />
+          </TouchableOpacity>
+        </View>
       ),
     });
   }, [navigation, theme, isDark]);
@@ -158,8 +173,7 @@ export default function HomeScreen({ navigation }) {
 	  {/* In-app logo (below header, above search bar) */}
 	  <View style={{ alignItems: 'center', marginTop: 20 }}>
 	    <Image
-		  source={require('../../assets/icon_bar.png')}
-		  //style={{ width: 80, height: 80 }}
+		  source={logoSource}
 		  style={{
 		    width: 200,          // or any width you want
 		    height: undefined,   // let RN calculate height
@@ -168,8 +182,6 @@ export default function HomeScreen({ navigation }) {
 		  resizeMode="contain"
 	    />
 	  </View>
-
-
 
       {/* Search Bar */}
       <View
@@ -291,6 +303,48 @@ export default function HomeScreen({ navigation }) {
             </View>
           </View>
         </View>
+      </Modal>
+
+      {/* Menu Modal */}
+      <Modal
+        transparent
+        animationType="fade"
+        visible={menuVisible}
+        onRequestClose={() => setMenuVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.menuOverlay}
+          activeOpacity={1}
+          onPress={() => setMenuVisible(false)}
+        >
+          <View style={[styles.menuContent, { backgroundColor: theme.card }]}>
+            
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setMenuVisible(false);
+                navigation.navigate('Settings');
+              }}
+            >
+              <Ionicons name="settings-outline" size={20} color={theme.text} />
+              <Text style={[styles.menuItemText, { color: theme.text }]}>Settings</Text>
+            </TouchableOpacity>
+
+            <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setMenuVisible(false);
+                navigation.navigate('About');
+              }}
+            >
+              <Ionicons name="information-circle-outline" size={20} color={theme.text} />
+              <Text style={[styles.menuItemText, { color: theme.text }]}>About & Privacy</Text>
+            </TouchableOpacity>
+
+          </View>
+        </TouchableOpacity>
       </Modal>
 
     </View>
@@ -451,5 +505,33 @@ const styles = StyleSheet.create({
   createButtonText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+
+  // Menu styles
+  menuContent: {
+    position: 'absolute',
+    top: 60,
+    right: 10,
+    borderRadius: 8,
+    minWidth: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    gap: 12,
+  },
+  menuItemText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  menuDivider: {
+    height: 1,
+    marginHorizontal: 12,
   },
 });

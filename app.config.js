@@ -6,8 +6,8 @@ export default ({ config }) => {
     android: {
       ...config.android,
       package: isDevClient
-        ? "com.kimon.listhappens.dev"   // dev client package
-        : "com.kimon.listhappens"       // production package
+        ? "com.ListHappens.app.dev"   // dev client package
+        : "com.ListHappens.app"       // production package
     }
   };
 };
