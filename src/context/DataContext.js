@@ -79,7 +79,8 @@ export const DataProvider = ({ children }) => {
     title,
     description = '',
     dueDate = null,
-    priority = 'medium'
+    priority = 'medium',
+	completed = false        // ← add this
   ) => {
     setLists(prevLists =>
       prevLists.map(list => {
@@ -89,7 +90,7 @@ export const DataProvider = ({ children }) => {
             id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
             title,
             description,
-            completed: false,
+            completed,
             createdAt: Date.now(),
             dueDate,
             priority,

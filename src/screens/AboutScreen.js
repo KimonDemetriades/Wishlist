@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
+import { Linking } from 'react-native';
+
 
 export default function AboutScreen() {
   const { theme } = useTheme();
@@ -57,11 +59,19 @@ export default function AboutScreen() {
           This app does not use any third-party analytics, advertising, or tracking services.
         </Text>
 
-        <Text style={[styles.subtitle, { color: theme.text }]}>Contact</Text>
-        <Text style={[styles.text, { color: theme.textSecondary }]}>
-          For questions or concerns about privacy please view policy here: http://tbd.co.za/listhappens-privacy-policy{'\n'}
-		  You can also  contact us at that site.
-        </Text>
+		<Text style={[styles.subtitle, { color: theme.text }]}>Contact</Text>
+
+		<Text style={[styles.text, { color: theme.textSecondary }]}>
+		  For questions or concerns about privacy please view the policy here:{'\n'}
+		  <Text
+			style={{ color: theme.primary, textDecorationLine: 'underline' }}
+			onPress={() => Linking.openURL('http://tbd.co.za/listhappens-privacy-policy')}
+		  >
+			{'\n'}http://tbd.co.za/listhappens-privacy-policy{'\n'}
+		  </Text>
+		  {'\n'}
+		  You can also contact us at that site.
+		</Text>
 
         <View style={{ height: 40 }} />
       </View>

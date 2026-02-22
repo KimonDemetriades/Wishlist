@@ -13,8 +13,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../context/DataContext';
 import { useTheme } from '../context/ThemeContext';
 import { Image } from 'react-native';
-import { useColorScheme } from 'react-native';
+import { Keyboard, TouchableWithoutFeedback, useColorScheme } from 'react-native';
 
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
+import { useListImport } from '../services/ImportManager';
+import { useAllListsExport } from '../services/ListExportModule';
+import { Pressable } from 'react-native';
 
 
 export default function HomeScreen({ navigation }) {
@@ -26,6 +31,13 @@ export default function HomeScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [editingListId, setEditingListId] = useState(null);
   const [menuVisible, setMenuVisible] = useState(false);
+
+  const { handleBackupToFile } = useAllListsExport();
+  const { importFromJsonString } = useListImport();
+
+  const [importModalVisible, setImportModalVisible] = useState(false);
+  const [importJson, setImportJson] = useState('');
+  const [importError, setImportError] = useState('');
   
   const colorScheme = isDark ? 'dark' : 'light';
   //console.log("🔄 Theme changed:", colorScheme);
@@ -85,6 +97,18 @@ export default function HomeScreen({ navigation }) {
         { text: 'Delete', style: 'destructive', onPress: () => deleteList(listId) },
       ]
     );
+  };
+
+  const handleImport = () => {
+    setImportError('');
+    try {
+      importFromJsonString(importJson);
+      setImportJson('');
+      setImportModalVisible(false);
+      Alert.alert('Imported', 'List imported successfully.');
+    } catch (e) {
+      setImportError(e.message);
+    }
   };
 
   const getListStats = (list) => {
@@ -168,186 +192,308 @@ export default function HomeScreen({ navigation }) {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        {/* In-app logo (below header, above search bar) */}
+        <View style={{ alignItems: 'center', marginTop: 20 }}>
+          <Image
+            source={logoSource}
+            style={{
+              width: 200,          // or any width you want
+              height: undefined,   // let RN calculate height
+              aspectRatio: 4,      // match your logo’s real ratio
+            }}
+            resizeMode="contain"
+          />
+        </View>
 
-	  {/* In-app logo (below header, above search bar) */}
-	  <View style={{ alignItems: 'center', marginTop: 20 }}>
-	    <Image
-		  source={logoSource}
-		  style={{
-		    width: 200,          // or any width you want
-		    height: undefined,   // let RN calculate height
-		    aspectRatio: 4,      // match your logo’s real ratio
-		  }}
-		  resizeMode="contain"
-	    />
-	  </View>
-
-      {/* Search Bar */}
-      <View
-        style={[
-          styles.searchContainer,
-          { backgroundColor: theme.card, shadowColor: theme.isDark ? '#000' : '#000' }
-        ]}
-      >
-        <Ionicons name="search" size={20} color={theme.textSecondary} style={styles.searchIcon} />
-
-        <TextInput
+        {/* Search Bar */}
+        <View
           style={[
-            styles.searchInput,
-            { color: theme.text }
+            styles.searchContainer,
+            { backgroundColor: theme.card, shadowColor: theme.isDark ? '#000' : '#000' }
           ]}
-          placeholder="Search lists and items..."
-          placeholderTextColor={theme.textSecondary}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
+        >
+          <Ionicons name="search" size={20} color={theme.textSecondary} style={styles.searchIcon} />
+
+          <TextInput
+            style={[
+              styles.searchInput,
+              { color: theme.text }
+            ]}
+            placeholder="Search lists and items..."
+            placeholderTextColor={theme.textSecondary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={20} color={theme.textSecondary} />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Lists */}
+        <FlatList
+          data={filteredLists}
+          renderItem={renderListItem}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.listContainer}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Ionicons name="list-outline" size={80} color={theme.border} />
+              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+                No lists yet
+              </Text>
+              <Text style={[styles.emptySubtext, { color: theme.textSecondary }]}>
+                Tap the + button to create one
+              </Text>
+            </View>
+          }
         />
 
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Ionicons name="close-circle" size={20} color={theme.textSecondary} />
-          </TouchableOpacity>
-        )}
-      </View>
+        {/* Add Button */}
+        <TouchableOpacity
+          style={[styles.fab, { backgroundColor: theme.primary }]}
+          onPress={() => {
+            setEditingListId(null);
+            setListName('');
+            setModalVisible(true);
+          }}
+        >
+          <Ionicons name="add" size={30} color="#fff" />
+        </TouchableOpacity>
 
-      {/* Lists */}
-      <FlatList
-        data={filteredLists}
-        renderItem={renderListItem}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.listContainer}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="list-outline" size={80} color={theme.border} />
-            <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-              No lists yet
-            </Text>
-            <Text style={[styles.emptySubtext, { color: theme.textSecondary }]}>
-              Tap the + button to create one
-            </Text>
-          </View>
-        }
-      />
+        {/* Create/Edit List Modal */}
+        <Modal
+          animationType="slide"
+          transparent
+          visible={modalVisible}
+          onRequestClose={() => setModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+		    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+              <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
+                <Text style={[styles.modalTitle, { color: theme.text }]}>
+                  {editingListId ? 'Rename List' : 'New List'}
+                </Text>
 
-      {/* Add Button */}
-      <TouchableOpacity
-        style={[styles.fab, { backgroundColor: theme.primary }]}
-        onPress={() => {
-          setEditingListId(null);
-          setListName('');
-          setModalVisible(true);
-        }}
-      >
-        <Ionicons name="add" size={30} color="#fff" />
-      </TouchableOpacity>
+                <TextInput
+                  style={[
+                    styles.modalInput,
+                    {
+                      backgroundColor: theme.card,
+                      color: theme.text,
+                      borderColor: theme.border,
+                    }
+                  ]}
+                  placeholder="List name"
+                  placeholderTextColor={theme.textSecondary}
+                  value={listName}
+                  onChangeText={setListName}
+                  autoFocus
+                />
 
-      {/* Create/Edit List Modal */}
-      <Modal
-        animationType="slide"
-        transparent
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
-            <Text style={[styles.modalTitle, { color: theme.text }]}>
-              {editingListId ? 'Rename List' : 'New List'}
-            </Text>
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity
+                    style={[
+                      styles.modalButton,
+                      styles.cancelButton,
+                      { backgroundColor: theme.border + '33' }
+                    ]}
+                    onPress={() => {
+                      setModalVisible(false);
+                      setListName('');
+                      setEditingListId(null);
+                    }}
+                  >
+                    <Text style={[styles.cancelButtonText, { color: theme.text }]}>
+                      Cancel
+                    </Text>
+                  </TouchableOpacity>
 
-            <TextInput
-              style={[
-                styles.modalInput,
-                {
-                  backgroundColor: theme.card,
-                  color: theme.text,
-                  borderColor: theme.border,
-                }
-              ]}
-              placeholder="List name"
-              placeholderTextColor={theme.textSecondary}
-              value={listName}
-              onChangeText={setListName}
-              autoFocus
-            />
+                  <TouchableOpacity
+                    style={[
+                      styles.modalButton,
+                      styles.createButton,
+                      { backgroundColor: theme.primary }
+                    ]}
+                    onPress={handleCreateList}
+                  >
+                    <Text style={[styles.createButtonText, { color: '#fff' }]}>
+                      {editingListId ? 'Save' : 'Create'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+		    </TouchableWithoutFeedback>          
+		  </View>
+        </Modal>
 
-            <View style={styles.modalButtons}>
+        {/* Menu Modal */}
+        <Modal
+          transparent
+          animationType="fade"
+          visible={menuVisible}
+          onRequestClose={() => setMenuVisible(false)}
+        >
+          <TouchableOpacity
+            style={styles.menuOverlay}
+            activeOpacity={1}
+            onPress={() => setMenuVisible(false)}
+          >
+            <View style={[styles.menuContent, { backgroundColor: theme.card }]}>
+              
               <TouchableOpacity
-                style={[
-                  styles.modalButton,
-                  styles.cancelButton,
-                  { backgroundColor: theme.border + '33' }
-                ]}
+                style={styles.menuItem}
                 onPress={() => {
-                  setModalVisible(false);
-                  setListName('');
-                  setEditingListId(null);
+                  setMenuVisible(false);
+                  navigation.navigate('Settings');
                 }}
               >
-                <Text style={[styles.cancelButtonText, { color: theme.text }]}>
-                  Cancel
-                </Text>
+                <Ionicons name="settings-outline" size={20} color={theme.text} />
+                <Text style={[styles.menuItemText, { color: theme.text }]}>Settings</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[
-                  styles.modalButton,
-                  styles.createButton,
-                  { backgroundColor: theme.primary }
-                ]}
-                onPress={handleCreateList}
+              <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
+
+			  {/* ── NEW: Backup ── */}
+			  <TouchableOpacity
+				style={styles.menuItem}
+				onPress={() => { setMenuVisible(false); handleBackupToFile(); }}
+			  >
+				<Ionicons name="cloud-download-outline" size={20} color={theme.text} />
+				<Text style={[styles.menuItemText, { color: theme.text }]}>Backup All Lists</Text>
+			  </TouchableOpacity>
+
+			  <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
+
+			  {/* ── NEW: Import ── */}
+			  <TouchableOpacity
+				style={styles.menuItem}
+				onPress={() => { setMenuVisible(false); setImportModalVisible(true); }}
+			  >
+				<Ionicons name="cloud-upload-outline" size={20} color={theme.text} />
+				<Text style={[styles.menuItemText, { color: theme.text }]}>Import List</Text>
+			  </TouchableOpacity>
+
+			  <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
+
+			  <TouchableOpacity
+			    style={styles.menuItem}
+			    onPress={() => {
+				  setMenuVisible(false);
+				  navigation.navigate('QrImport');
+			    }}
+			  >
+			    <Ionicons name="qr-code-outline" size={20} color={theme.text} />
+			    <Text style={[styles.menuItemText, { color: theme.text }]}>Import via QR</Text>
+			  </TouchableOpacity>
+	  
+              <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
+			  
+			  <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  setMenuVisible(false);
+                  navigation.navigate('About');
+                }}
               >
-                <Text style={[styles.createButtonText, { color: '#fff' }]}>
-                  {editingListId ? 'Save' : 'Create'}
-                </Text>
+                <Ionicons name="information-circle-outline" size={20} color={theme.text} />
+                <Text style={[styles.menuItemText, { color: theme.text }]}>About & Privacy</Text>
               </TouchableOpacity>
+
             </View>
-          </View>
-        </View>
-      </Modal>
+          </TouchableOpacity>
+        </Modal>
 
-      {/* Menu Modal */}
-      <Modal
-        transparent
-        animationType="fade"
-        visible={menuVisible}
-        onRequestClose={() => setMenuVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.menuOverlay}
-          activeOpacity={1}
-          onPress={() => setMenuVisible(false)}
+        {/* Import Modal */}
+        <Modal
+          animationType="slide"
+          transparent
+          visible={importModalVisible}
+          onRequestClose={() => setImportModalVisible(false)}
         >
-          <View style={[styles.menuContent, { backgroundColor: theme.card }]}>
-            
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => {
-                setMenuVisible(false);
-                navigation.navigate('Settings');
-              }}
-            >
-              <Ionicons name="settings-outline" size={20} color={theme.text} />
-              <Text style={[styles.menuItemText, { color: theme.text }]}>Settings</Text>
-            </TouchableOpacity>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+            <View style={styles.modalOverlay}>
+              <TouchableWithoutFeedback accessible={false}>
+                <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
 
-            <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
+                  <Text style={[styles.modalTitle, { color: theme.text }]}>
+                    Import List
+                  </Text>
 
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => {
-                setMenuVisible(false);
-                navigation.navigate('About');
-              }}
-            >
-              <Ionicons name="information-circle-outline" size={20} color={theme.text} />
-              <Text style={[styles.menuItemText, { color: theme.text }]}>About & Privacy</Text>
-            </TouchableOpacity>
+                  <Text style={[styles.importHint, { color: theme.textSecondary }]}>
+                    Paste exported JSON below
+                  </Text>
 
-          </View>
-        </TouchableOpacity>
-      </Modal>
+                  <TextInput
+                    style={[
+                      styles.modalInput,
+                      styles.importInput,
+                      {
+                        color: theme.text,
+                        borderColor: importError ? theme.danger : theme.border,
+                        backgroundColor: theme.background,
+                      }
+                    ]}
+                    placeholder='{ "name": "My List", "items": [...] }'
+                    placeholderTextColor={theme.textSecondary}
+                    value={importJson}
+                    onChangeText={(t) => { setImportJson(t); setImportError(''); }}
+                    multiline
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
 
-    </View>
+                  {importError ? (
+                    <Text style={[styles.importError, { color: theme.danger }]}>
+                      {importError}
+                    </Text>
+                  ) : null}
+
+                  <View style={styles.modalButtons}>
+                    <TouchableOpacity
+                      style={[
+                        styles.modalButton,
+                        styles.cancelButton,
+                        { backgroundColor: theme.border + '33' }
+                      ]}
+                      onPress={() => {
+                        setImportModalVisible(false);
+                        setImportJson('');
+                        setImportError('');
+                      }}
+                    >
+                      <Text style={[styles.cancelButtonText, { color: theme.text }]}>
+                        Cancel
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.modalButton,
+                        styles.createButton,
+                        { backgroundColor: importJson.trim() ? theme.primary : theme.border }
+                      ]}
+                      onPress={handleImport}
+                      disabled={!importJson.trim()}
+                    >
+                      <Text style={[styles.createButtonText, { color: '#fff' }]}>
+                        Import
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                </View>
+              </TouchableWithoutFeedback>
+            </View>
+          </TouchableWithoutFeedback>
+        </Modal>
+
+      </View>
+    </TouchableWithoutFeedback>
   );
 }
 
@@ -534,4 +680,26 @@ const styles = StyleSheet.create({
     height: 1,
     marginHorizontal: 12,
   },
+
+  importHint: {
+    fontSize: 13,
+    marginBottom: 8,
+  },
+  importInput: {
+    height: 120,
+    textAlignVertical: 'top',
+  },
+  importError: {
+    fontSize: 13,
+    marginBottom: 8,
+    marginTop: -8,
+  },
+  
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+  },
+
 });

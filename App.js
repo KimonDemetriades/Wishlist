@@ -12,6 +12,7 @@ import HomeScreen from './src/screens/HomeScreen';
 import ListDetailScreen from './src/screens/ListDetailScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import AboutScreen from './src/screens/AboutScreen';
+import QrImportScreen from './src/screens/QrImportScreen';
 
 const Stack = createStackNavigator();
 
@@ -60,6 +61,11 @@ function AppInner() {
             options={{ title: 'Settings' }}
           />
           <Stack.Screen
+  		    name="QrImport"
+		    component={QrImportScreen}
+		    options={{ title: 'Scan QR' }}
+		  />
+		  <Stack.Screen
             name="About"
             component={AboutScreen}
             options={{ title: 'About & Privacy' }}

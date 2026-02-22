@@ -10,6 +10,8 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Keyboard, 
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../context/DataContext';
@@ -19,7 +21,7 @@ import { useTheme } from '../context/ThemeContext';
 import { OCRService } from '../services/OCRService';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useSettings } from '../context/SettingsContext';
-
+import { ListExportSheet } from '../services/ListExportModule';
 
 
 export default function ListDetailScreen({ route, navigation }) {
@@ -53,7 +55,7 @@ export default function ListDetailScreen({ route, navigation }) {
   
   const [menuVisible, setMenuVisible] = useState(false);
   const [priorityFilter, setPriorityFilter] = useState('all'); // 'all', 'high', 'medium', 'low'
-
+  const [exportVisible, setExportVisible] = useState(false);
   const { autoClean } = useSettings();
 
   const WHATSAPP_REGEX = /^[^:]+:\s*/;
@@ -311,570 +313,583 @@ export default function ListDetailScreen({ route, navigation }) {
   //};
   //const filteredItems = getFilteredItems();
 
+  
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-    
-      {/* STATS BAR - ADD THIS */}
-      <View
-        style={[
-          styles.statsBar,
-          { backgroundColor: theme.card, borderBottomColor: theme.border }
-        ]}
-      >
-        {['all', 'active', 'completed'].map(mode => (
-          <TouchableOpacity
-            key={mode}
-            style={[
-              styles.statButton,
-              filterMode === mode && { backgroundColor: theme.primary }
-            ]}
-            onPress={() => setFilterMode(mode)}
-          >
-            <Text
-              style={[
-                styles.statText,
-                { color: filterMode === mode ? '#fff' : theme.text }
-              ]}
-            >
-              {mode === 'all'
-                ? `All (${stats.total})`
-                : mode === 'active'
-                ? `Active (${stats.active})`
-                : `Done (${stats.completed})`}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* SORT BAR - ADD THIS */}
-      <View
-        style={[
-          styles.sortContainer,
-          { backgroundColor: theme.card, borderBottomColor: theme.border }
-        ]}
-      >
-        <Text style={[styles.sortLabel, { color: theme.textSecondary }]}>
-          Sort:
-        </Text>
-
-        {[
-          { key: 'default', label: 'Default' },
-          { key: 'alpha', label: 'A-Z' },
-          { key: 'date', label: 'Date' },
-          { key: 'priority', label: 'Priority' },
-        ].map(btn => (
-          <TouchableOpacity
-            key={btn.key}
-            style={[
-              styles.sortButton,
-              { borderColor: theme.border },
-              sortMode === btn.key && {
-                backgroundColor: theme.primary + '22',
-                borderColor: theme.primary,
-              }
-            ]}
-            onPress={() => setSortMode(btn.key)}
-          >
-            <Text
-              style={[
-                styles.sortText,
-                { color: sortMode === btn.key ? theme.primary : theme.text }
-              ]}
-            >
-              {btn.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-	  
-      {/* PRIORITY FILTER BUTTONS */}
-      <View style={[styles.filterContainer, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <TouchableOpacity
-            style={[
-              styles.filterButton,
-              priorityFilter === 'all' && { backgroundColor: theme.primary },
-            ]}
-            onPress={() => setPriorityFilter('all')}
-          >
-            <Text style={[
-              styles.filterButtonText,
-              { color: priorityFilter === 'all' ? '#fff' : theme.text }
-            ]}>
-              All ({list.items.length})
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.filterButton,
-              priorityFilter === 'high' && { backgroundColor: '#ef4444' },
-            ]}
-            onPress={() => setPriorityFilter('high')}
-          >
-            <Text style={[
-              styles.filterButtonText,
-              { color: priorityFilter === 'high' ? '#fff' : theme.text }
-            ]}>
-              High ({list.items.filter(i => i.priority === 'high').length})
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.filterButton,
-              priorityFilter === 'medium' && { backgroundColor: '#f59e0b' },
-            ]}
-            onPress={() => setPriorityFilter('medium')}
-          >
-            <Text style={[
-              styles.filterButtonText,
-              { color: priorityFilter === 'medium' ? '#fff' : theme.text }
-            ]}>
-              Medium ({list.items.filter(i => i.priority === 'medium').length})
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.filterButton,
-              priorityFilter === 'low' && { backgroundColor: '#10b981' },
-            ]}
-            onPress={() => setPriorityFilter('low')}
-          >
-            <Text style={[
-              styles.filterButtonText,
-              { color: priorityFilter === 'low' ? '#fff' : theme.text }
-            ]}>
-              Low ({list.items.filter(i => i.priority === 'low').length})
-            </Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </View>
-
-      {/* TASK LIST - Scrollable Container */}
-      <View style={styles.listWrapper}>
-        <DraggableFlatList
-          data={filteredItems}
-          keyExtractor={item => item.id}
-          onDragEnd={({ data }) => reorderItems(listId, data)}
-          contentContainerStyle={styles.listContainer}
-          renderItem={({ item, drag, isActive }) => (
-            <View style={isActive && { opacity: 0.5 }}>
-              <TaskItem 
-                item={item} 
-                listId={listId} 
-                onEdit={() => handleEditItem(item)}
-                onLongPress={drag}
-              />
-            </View>
-          )}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Ionicons name="list-outline" size={64} color={theme.textSecondary} />
-              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-                No items in this list
-              </Text>
-              <Text style={[styles.emptySubtext, { color: theme.textSecondary }]}>
-                Tap + to add an item{'\n'}
-				{'\n'}
-				List icon allows bulk downloads{'\n'}
-				{'\n'}
-				Camera adds items from photos{'\n'}
-              </Text>
-            </View>
-          }
-        />
-      </View>
-
-      <View style={styles.fabGroup}>
-        {/* Row: Single + Bulk */}
-        <View style={styles.fabRow}>
-          <TouchableOpacity
-            style={[styles.fab, styles.smallFab, { backgroundColor: theme.success }]}
-            onPress={() => {
-              setEditingItemId(null);
-              setItemTitle('');
-              setItemDescription('');
-              setItemDueDate(null);
-              setItemPriority('medium');
-              setModalVisible(true);
-            }}
-          >
-            <Ionicons name="add" size={24} color="#fff" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.fab, styles.smallFab, { backgroundColor: theme.primary }]}
-            onPress={() => setBulkModalVisible(true)}
-          >
-            <Ionicons name="list-outline" size={24} color="#fff" />
-          </TouchableOpacity>
-
-          {/* Camera */}
-          <TouchableOpacity
-            style={[styles.fab, styles.cameraFab]}
-            onPress={() => setImagePickerVisible(true)}
-          >
-            <Ionicons name="camera" size={24} color="#fff" />
-          </TouchableOpacity>
-		</View>
-      </View>
-
-
-      {/* MENU MODAL */}
-      <Modal
-        transparent
-        animationType="fade"
-        visible={menuVisible}
-        onRequestClose={() => setMenuVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.menuOverlay}
-          activeOpacity={1}
-          onPress={() => setMenuVisible(false)}
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        {/* STATS BAR - ADD THIS */}
+        <View
+          style={[
+            styles.statsBar,
+            { backgroundColor: theme.card, borderBottomColor: theme.border }
+          ]}
         >
-          <View style={[styles.menuContent, { backgroundColor: theme.card }]}>
+          {['all', 'active', 'completed'].map(mode => (
             <TouchableOpacity
-              style={styles.menuItem}
-              onPress={handleSelectAll}
-            >
-              <Ionicons name="checkmark-done-outline" size={20} color={theme.success} />
-              <Text style={[styles.menuItemText, { color: theme.text }]}>
-                Select All
-              </Text>
-            </TouchableOpacity>
-
-            <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />		  
-
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={handleClearCompleted}
-            >
-              <Ionicons name="trash-outline" size={20} color={theme.danger} />
-              <Text style={[styles.menuItemText, { color: theme.danger }]}>
-                Clear Completed
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* SINGLE ADD/EDIT MODAL */}
-      <Modal transparent animationType="slide" visible={modalVisible}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
-            <Text style={[styles.modalTitle, { color: theme.text }]}>
-              {editingItemId ? 'Edit Item' : 'Add Item'}
-            </Text>
-
-            <TextInput
+              key={mode}
               style={[
-                styles.modalInput,
-                { color: theme.text, borderColor: theme.border, backgroundColor: theme.background },
+                styles.statButton,
+                filterMode === mode && { backgroundColor: theme.primary }
               ]}
-              placeholder="Item title"
-              placeholderTextColor={theme.textSecondary}
-              value={itemTitle}
-              onChangeText={setItemTitle}
-              autoFocus
-            />
-
-            <TextInput
-              style={[
-                styles.modalInput,
-                {
-                  height: 80,
-                  textAlignVertical: 'top',
-                  color: theme.text,
-                  borderColor: theme.border,
-                  backgroundColor: theme.background,
-                },
-              ]}
-              placeholder="Description (optional)"
-              placeholderTextColor={theme.textSecondary}
-              multiline
-              value={itemDescription}
-              onChangeText={setItemDescription}
-            />
-
-            {/* PRIORITY SELECTOR */}
-            <Text style={[styles.priorityLabel, { color: theme.text }]}>Priority:</Text>
-            <View style={styles.priorityContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.priorityButton,
-                  itemPriority === 'high' && styles.priorityButtonActive,
-                  itemPriority === 'high' && { backgroundColor: '#ef4444' },
-                ]}
-                onPress={() => setItemPriority('high')}
-              >
-                <Text style={[
-                  styles.priorityButtonText,
-                  { color: itemPriority === 'high' ? '#fff' : theme.text }
-                ]}>
-                  High
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.priorityButton,
-                  itemPriority === 'medium' && styles.priorityButtonActive,
-                  itemPriority === 'medium' && { backgroundColor: '#f59e0b' },
-                ]}
-                onPress={() => setItemPriority('medium')}
-              >
-                <Text style={[
-                  styles.priorityButtonText,
-                  { color: itemPriority === 'medium' ? '#fff' : theme.text }
-                ]}>
-                  Medium
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.priorityButton,
-                  itemPriority === 'low' && styles.priorityButtonActive,
-                  itemPriority === 'low' && { backgroundColor: '#10b981' },
-                ]}
-                onPress={() => setItemPriority('low')}
-              >
-                <Text style={[
-                  styles.priorityButtonText,
-                  { color: itemPriority === 'low' ? '#fff' : theme.text }
-                ]}>
-                  Low
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* DUE DATE PICKER */}
-            <Text style={[styles.priorityLabel, { color: theme.text }]}>Due Date:</Text>
-            <TouchableOpacity
-              style={[styles.dateButton, { borderColor: theme.border }]}
-              onPress={() => setShowDatePicker(true)}
+              onPress={() => setFilterMode(mode)}
             >
-              <Ionicons name="calendar-outline" size={20} color={theme.primary} />
-              <Text style={[styles.dateButtonText, { color: itemDueDate ? theme.text : theme.textSecondary }]}>
-                {itemDueDate ? formatDate(itemDueDate) : 'No due date'}
+              <Text
+                style={[
+                  styles.statText,
+                  { color: filterMode === mode ? '#fff' : theme.text }
+                ]}
+              >
+                {mode === 'all'
+                  ? `All (${stats.total})`
+                  : mode === 'active'
+                  ? `Active (${stats.active})`
+                  : `Done (${stats.completed})`}
               </Text>
-              {itemDueDate && (
-                <TouchableOpacity onPress={() => setItemDueDate(null)} style={styles.clearDateButton}>
-                  <Ionicons name="close-circle" size={18} color={theme.textSecondary} />
-                </TouchableOpacity>
-              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* SORT BAR - ADD THIS */}
+        <View
+          style={[
+            styles.sortContainer,
+            { backgroundColor: theme.card, borderBottomColor: theme.border }
+          ]}
+        >
+          <Text style={[styles.sortLabel, { color: theme.textSecondary }]}>
+            Sort:
+          </Text>
+
+          {[
+            { key: 'default', label: 'Default' },
+            { key: 'alpha', label: 'A-Z' },
+            { key: 'date', label: 'Date' },
+            { key: 'priority', label: 'Priority' },
+          ].map(btn => (
+            <TouchableOpacity
+              key={btn.key}
+              style={[
+                styles.sortButton,
+                { borderColor: theme.border },
+                sortMode === btn.key && {
+                  backgroundColor: theme.primary + '22',
+                  borderColor: theme.primary,
+                }
+              ]}
+              onPress={() => setSortMode(btn.key)}
+            >
+              <Text
+                style={[
+                  styles.sortText,
+                  { color: sortMode === btn.key ? theme.primary : theme.text }
+                ]}
+              >
+                {btn.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+		
+        {/* PRIORITY FILTER BUTTONS */}
+        <View style={[styles.filterContainer, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <TouchableOpacity
+              style={[
+                styles.filterButton,
+                priorityFilter === 'all' && { backgroundColor: theme.primary },
+              ]}
+              onPress={() => setPriorityFilter('all')}
+            >
+              <Text style={[
+                styles.filterButtonText,
+                { color: priorityFilter === 'all' ? '#fff' : theme.text }
+              ]}>
+                All ({list.items.length})
+              </Text>
             </TouchableOpacity>
 
-            {showDatePicker && (
-              <DateTimePicker
-                value={itemDueDate ? new Date(itemDueDate) : new Date()}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={(event, selectedDate) => {
-                  setShowDatePicker(false);
-                  if (selectedDate) {
-                    setItemDueDate(selectedDate.getTime());
-                  }
-                }}
-              />
+            <TouchableOpacity
+              style={[
+                styles.filterButton,
+                priorityFilter === 'high' && { backgroundColor: '#ef4444' },
+              ]}
+              onPress={() => setPriorityFilter('high')}
+            >
+              <Text style={[
+                styles.filterButtonText,
+                { color: priorityFilter === 'high' ? '#fff' : theme.text }
+              ]}>
+                High ({list.items.filter(i => i.priority === 'high').length})
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.filterButton,
+                priorityFilter === 'medium' && { backgroundColor: '#f59e0b' },
+              ]}
+              onPress={() => setPriorityFilter('medium')}
+            >
+              <Text style={[
+                styles.filterButtonText,
+                { color: priorityFilter === 'medium' ? '#fff' : theme.text }
+              ]}>
+                Medium ({list.items.filter(i => i.priority === 'medium').length})
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.filterButton,
+                priorityFilter === 'low' && { backgroundColor: '#10b981' },
+              ]}
+              onPress={() => setPriorityFilter('low')}
+            >
+              <Text style={[
+                styles.filterButtonText,
+                { color: priorityFilter === 'low' ? '#fff' : theme.text }
+              ]}>
+                Low ({list.items.filter(i => i.priority === 'low').length})
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+
+        {/* TASK LIST - Scrollable Container */}
+        <View style={styles.listWrapper}>
+          <DraggableFlatList
+            data={filteredItems}
+            keyExtractor={item => item.id}
+            onDragEnd={({ data }) => reorderItems(listId, data)}
+            contentContainerStyle={styles.listContainer}
+            renderItem={({ item, drag, isActive }) => (
+              <View style={isActive && { opacity: 0.5 }}>
+                <TaskItem 
+                  item={item} 
+                  listId={listId} 
+                  onEdit={() => handleEditItem(item)}
+                  onLongPress={drag}
+                />
+              </View>
             )}
-
-            <View style={styles.modalButtonRow}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton, { borderColor: theme.border }]}
-                onPress={() => {
-                  setModalVisible(false);
-                  setEditingItemId(null);
-                }}
-              >
-                <Text style={[styles.modalButtonText, { color: theme.text }]}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.modalButton, styles.primaryButton, { backgroundColor: theme.success }]}
-                onPress={handleAddOrEditItem}
-              >
-                <Text style={[styles.modalButtonText, { color: '#fff' }]}>
-                  {editingItemId ? 'Update' : 'Add'}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Ionicons name="list-outline" size={64} color={theme.textSecondary} />
+                <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+                  No items in this list
                 </Text>
-              </TouchableOpacity>
-            </View>
+                <Text style={[styles.emptySubtext, { color: theme.textSecondary }]}>
+                  Tap + to add an item{'\n'}
+                  {'\n'}
+                  List icon allows bulk downloads{'\n'}
+                  {'\n'}
+                  Camera adds items from photos{'\n'}
+                </Text>
+              </View>
+            }
+          />
+        </View>
+
+        <View style={styles.fabGroup}>
+          {/* Row: Single + Bulk */}
+          <View style={styles.fabRow}>
+            <TouchableOpacity
+              style={[styles.fab, styles.smallFab, { backgroundColor: theme.success }]}
+              onPress={() => {
+                setEditingItemId(null);
+                setItemTitle('');
+                setItemDescription('');
+                setItemDueDate(null);
+                setItemPriority('medium');
+                setModalVisible(true);
+              }}
+            >
+              <Ionicons name="add" size={24} color="#fff" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.fab, styles.smallFab, { backgroundColor: theme.primary }]}
+              onPress={() => setBulkModalVisible(true)}
+            >
+              <Ionicons name="list-outline" size={24} color="#fff" />
+            </TouchableOpacity>
+
+            {/* Camera */}
+            <TouchableOpacity
+              style={[styles.fab, styles.cameraFab]}
+              onPress={() => setImagePickerVisible(true)}
+            >
+              <Ionicons name="camera" size={24} color="#fff" />
+            </TouchableOpacity>
           </View>
         </View>
-      </Modal>
 
-      {/* BULK ADD MODAL */}
-      <Modal transparent animationType="slide" visible={bulkModalVisible}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
-            <Text style={[styles.modalTitle, { color: theme.text }]}>
-              Bulk Add Items
-            </Text>
+        {/* MENU MODAL */}
+        <Modal
+          transparent
+          animationType="fade"
+          visible={menuVisible}
+          onRequestClose={() => setMenuVisible(false)}
+        >
+          <TouchableOpacity
+            style={styles.menuOverlay}
+            activeOpacity={1}
+            onPress={() => setMenuVisible(false)}
+          >
+            <View style={[styles.menuContent, { backgroundColor: theme.card }]}>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={handleSelectAll}
+              >
+                <Ionicons name="checkmark-done-outline" size={20} color={theme.success} />
+                <Text style={[styles.menuItemText, { color: theme.text }]}>
+                  Select All
+                </Text>
+              </TouchableOpacity>
 
-            {stagedItems.length === 0 ? (
-              <>
+              <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />        
+
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={handleClearCompleted}
+              >
+                <Ionicons name="trash-outline" size={20} color={theme.danger} />
+                <Text style={[styles.menuItemText, { color: theme.danger }]}>
+                  Clear Completed
+                </Text>
+              </TouchableOpacity>
+			  
+			  <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuVisible(false); setExportVisible(true); }}>
+			    <Ionicons name="share-outline" size={20} color={theme.text} />
+			    <Text style={[styles.menuItemText, { color: theme.text }]}>Export List</Text>
+			  </TouchableOpacity>
+
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
+        {/* SINGLE ADD/EDIT MODAL */}
+        <Modal transparent animationType="slide" visible={modalVisible}>
+		  <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+            <View style={styles.modalOverlay}>
+              <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
+                <Text style={[styles.modalTitle, { color: theme.text }]}>
+                  {editingItemId ? 'Edit Item' : 'Add Item'}
+                </Text>
+
+                <TextInput
+                  style={[
+                    styles.modalInput,
+                    { color: theme.text, borderColor: theme.border, backgroundColor: theme.background },
+                  ]}
+                  placeholder="Item title"
+                  placeholderTextColor={theme.textSecondary}
+                  value={itemTitle}
+                  onChangeText={setItemTitle}
+                  autoFocus
+                />
+
                 <TextInput
                   style={[
                     styles.modalInput,
                     {
-                      height: 160,
+                      height: 80,
                       textAlignVertical: 'top',
                       color: theme.text,
                       borderColor: theme.border,
                       backgroundColor: theme.background,
                     },
                   ]}
-                  placeholder="One item per line"
+                  placeholder="Description (optional)"
                   placeholderTextColor={theme.textSecondary}
                   multiline
-                  value={bulkText}
-                  onChangeText={setBulkText}
-                  autoFocus
+                  value={itemDescription}
+                  onChangeText={setItemDescription}
                 />
+
+                {/* PRIORITY SELECTOR */}
+                <Text style={[styles.priorityLabel, { color: theme.text }]}>Priority:</Text>
+                <View style={styles.priorityContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.priorityButton,
+                      itemPriority === 'high' && styles.priorityButtonActive,
+                      itemPriority === 'high' && { backgroundColor: '#ef4444' },
+                    ]}
+                    onPress={() => setItemPriority('high')}
+                  >
+                    <Text style={[
+                      styles.priorityButtonText,
+                      { color: itemPriority === 'high' ? '#fff' : theme.text }
+                    ]}>
+                      High
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.priorityButton,
+                      itemPriority === 'medium' && styles.priorityButtonActive,
+                      itemPriority === 'medium' && { backgroundColor: '#f59e0b' },
+                    ]}
+                    onPress={() => setItemPriority('medium')}
+                  >
+                    <Text style={[
+                      styles.priorityButtonText,
+                      { color: itemPriority === 'medium' ? '#fff' : theme.text }
+                    ]}>
+                      Medium
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.priorityButton,
+                      itemPriority === 'low' && styles.priorityButtonActive,
+                      itemPriority === 'low' && { backgroundColor: '#10b981' },
+                    ]}
+                    onPress={() => setItemPriority('low')}
+                  >
+                    <Text style={[
+                      styles.priorityButtonText,
+                      { color: itemPriority === 'low' ? '#fff' : theme.text }
+                    ]}>
+                      Low
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* DUE DATE PICKER */}
+                <Text style={[styles.priorityLabel, { color: theme.text }]}>Due Date:</Text>
+                <TouchableOpacity
+                  style={[styles.dateButton, { borderColor: theme.border }]}
+                  onPress={() => setShowDatePicker(true)}
+                >
+                  <Ionicons name="calendar-outline" size={20} color={theme.primary} />
+                  <Text style={[styles.dateButtonText, { color: itemDueDate ? theme.text : theme.textSecondary }]}>
+                    {itemDueDate ? formatDate(itemDueDate) : 'No due date'}
+                  </Text>
+                  {itemDueDate && (
+                    <TouchableOpacity onPress={() => setItemDueDate(null)} style={styles.clearDateButton}>
+                      <Ionicons name="close-circle" size={18} color={theme.textSecondary} />
+                    </TouchableOpacity>
+                  )}
+                </TouchableOpacity>
+
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={itemDueDate ? new Date(itemDueDate) : new Date()}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={(event, selectedDate) => {
+                      setShowDatePicker(false);
+                      if (selectedDate) {
+                        setItemDueDate(selectedDate.getTime());
+                      }
+                    }}
+                  />
+                )}
 
                 <View style={styles.modalButtonRow}>
                   <TouchableOpacity
                     style={[styles.modalButton, styles.cancelButton, { borderColor: theme.border }]}
-                    onPress={cancelBulkAdd}
+                    onPress={() => {
+                      setModalVisible(false);
+                      setEditingItemId(null);
+                    }}
                   >
                     <Text style={[styles.modalButtonText, { color: theme.text }]}>Cancel</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={[styles.modalButton, styles.primaryButton, { backgroundColor: theme.primary }]}
-                    onPress={parseBulkText}
+                    style={[styles.modalButton, styles.primaryButton, { backgroundColor: theme.success }]}
+                    onPress={handleAddOrEditItem}
                   >
                     <Text style={[styles.modalButtonText, { color: '#fff' }]}>
-                      Preview Items
+                      {editingItemId ? 'Update' : 'Add'}
                     </Text>
                   </TouchableOpacity>
                 </View>
-              </>
-            ) : (
-              <>
-                <Text style={{ color: theme.textSecondary, marginBottom: 10 }}>
-                  Tap an item to remove it before adding
+              </View>
+            </View>
+		  </TouchableWithoutFeedback>
+        </Modal>
+
+        {/* BULK ADD MODAL */}
+        <Modal transparent animationType="slide" visible={bulkModalVisible}>
+		  <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+            <View style={styles.modalOverlay}>
+              <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
+                <Text style={[styles.modalTitle, { color: theme.text }]}>
+                  Bulk Add Items
                 </Text>
 
-                <ScrollView
-                  style={{
-                    maxHeight: 180,
-                    marginBottom: 12,
-                    borderWidth: 1,
-                    borderColor: theme.border,
-                    borderRadius: 8,
-                    padding: 10,
-                    backgroundColor: theme.background,
-                  }}
-                >
-                  {stagedItems.map((item, idx) => (
-                    <TouchableOpacity
-                      key={`${item}-${idx}`}
-                      onPress={() => removeStagedItem(idx)}
-                      style={{ paddingVertical: 6 }}
-                    >
-                      <Text style={{ color: theme.text }}>• {item}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+                {stagedItems.length === 0 ? (
+                  <>
+                    <TextInput
+                      style={[
+                        styles.modalInput,
+                        {
+                          height: 160,
+                          textAlignVertical: 'top',
+                          color: theme.text,
+                          borderColor: theme.border,
+                          backgroundColor: theme.background,
+                        },
+                      ]}
+                      placeholder="One item per line"
+                      placeholderTextColor={theme.textSecondary}
+                      multiline
+                      value={bulkText}
+                      onChangeText={setBulkText}
+                      autoFocus
+                    />
 
-                <View style={styles.bulkButtonGrid}>
-                  <TouchableOpacity
-                    style={[styles.bulkButton, styles.cancelButton, { borderColor: theme.border }]}
-                    onPress={rejectBulkAdd}
-                  >
-                    <Text style={[styles.bulkButtonText, { color: theme.text }]}>Reject</Text>
-                  </TouchableOpacity>
+                    <View style={styles.modalButtonRow}>
+                      <TouchableOpacity
+                        style={[styles.modalButton, styles.cancelButton, { borderColor: theme.border }]}
+                        onPress={cancelBulkAdd}
+                      >
+                        <Text style={[styles.modalButtonText, { color: theme.text }]}>Cancel</Text>
+                      </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={[styles.bulkButton, styles.cancelButton, { borderColor: theme.border }]}
-                    onPress={cancelBulkAdd}
-                  >
-                    <Text style={[styles.bulkButtonText, { color: theme.text }]}>Cancel</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.bulkButton, styles.primaryButton, { backgroundColor: theme.primary }]}
-                    onPress={cleanStagedItems}
-                  >
-                    <Text style={[styles.bulkButtonText, { color: '#fff' }]}>Clean</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.bulkButton, styles.primaryButton, { backgroundColor: theme.success }]}
-                    onPress={acceptBulkAdd}
-                  >
-                    <Text style={[styles.bulkButtonText, { color: '#fff' }]}>
-                      Add {stagedItems.length}
+                      <TouchableOpacity
+                        style={[styles.modalButton, styles.primaryButton, { backgroundColor: theme.primary }]}
+                        onPress={parseBulkText}
+                      >
+                        <Text style={[styles.modalButtonText, { color: '#fff' }]}>
+                          Preview Items
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    <Text style={{ color: theme.textSecondary, marginBottom: 10 }}>
+                      Tap an item to remove it before adding
                     </Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
-          </View>
-        </View>
-      </Modal>
 
-      {/* IMAGE SOURCE PICKER MODAL */}
-      <Modal
-        transparent
-        animationType="fade"
-        visible={imagePickerVisible}
-        onRequestClose={() => setImagePickerVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setImagePickerVisible(false)}
+                    <ScrollView
+                      style={{
+                        maxHeight: 180,
+                        marginBottom: 12,
+                        borderWidth: 1,
+                        borderColor: theme.border,
+                        borderRadius: 8,
+                        padding: 10,
+                        backgroundColor: theme.background,
+                      }}
+                    >
+                      {stagedItems.map((item, idx) => (
+                        <TouchableOpacity
+                          key={`${item}-${idx}`}
+                          onPress={() => removeStagedItem(idx)}
+                          style={{ paddingVertical: 6 }}
+                        >
+                          <Text style={{ color: theme.text }}>• {item}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+
+                    <View style={styles.bulkButtonGrid}>
+                      <TouchableOpacity
+                        style={[styles.bulkButton, styles.cancelButton, { borderColor: theme.border }]}
+                        onPress={rejectBulkAdd}
+                      >
+                        <Text style={[styles.bulkButtonText, { color: theme.text }]}>Reject</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[styles.bulkButton, styles.cancelButton, { borderColor: theme.border }]}
+                        onPress={cancelBulkAdd}
+                      >
+                        <Text style={[styles.bulkButtonText, { color: theme.text }]}>Cancel</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[styles.bulkButton, styles.primaryButton, { backgroundColor: theme.primary }]}
+                        onPress={cleanStagedItems}
+                      >
+                        <Text style={[styles.bulkButtonText, { color: '#fff' }]}>Clean</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[styles.bulkButton, styles.primaryButton, { backgroundColor: theme.success }]}
+                        onPress={acceptBulkAdd}
+                      >
+                        <Text style={[styles.bulkButtonText, { color: '#fff' }]}>
+                          Add {stagedItems.length}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                )}
+              </View>
+            </View>
+		  </TouchableWithoutFeedback>
+        </Modal>
+
+        {/* IMAGE SOURCE PICKER MODAL */}
+        <Modal
+          transparent
+          animationType="fade"
+          visible={imagePickerVisible}
+          onRequestClose={() => setImagePickerVisible(false)}
         >
-          <View style={[styles.imagePickerContent, { backgroundColor: theme.card }]}>
-            <Text style={[styles.modalTitle, { color: theme.text }]}>
-              Choose Image Source
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setImagePickerVisible(false)}
+          >
+            <View style={[styles.imagePickerContent, { backgroundColor: theme.card }]}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>
+                Choose Image Source
+              </Text>
+              
+              <TouchableOpacity
+                style={[styles.imagePickerButton, { borderColor: theme.border }]}
+                onPress={() => handleOCRImage('camera')}
+              >
+                <Ionicons name="camera" size={24} color={theme.primary} />
+                <Text style={[styles.imagePickerText, { color: theme.text }]}>
+                  Take Photo
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.imagePickerButton, { borderColor: theme.border }]}
+                onPress={() => handleOCRImage('gallery')}
+              >
+                <Ionicons name="images" size={24} color={theme.primary} />
+                <Text style={[styles.imagePickerText, { color: theme.text }]}>
+                  Choose from Gallery
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.pickmodalButton, styles.cancelButton, { borderColor: theme.border }]}
+                onPress={() => setImagePickerVisible(false)}
+              >
+                <Text style={[styles.modalButtonText, { color: theme.text }]}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
+        {/* LOADING OVERLAY - SHOW DURING OCR */}
+        {ocrLoading && (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color={theme.primary} />
+            <Text style={[styles.loadingText, { color: '#fff' }]}>
+              Processing image...
             </Text>
-            
-            <TouchableOpacity
-              style={[styles.imagePickerButton, { borderColor: theme.border }]}
-              onPress={() => handleOCRImage('camera')}
-            >
-              <Ionicons name="camera" size={24} color={theme.primary} />
-              <Text style={[styles.imagePickerText, { color: theme.text }]}>
-                Take Photo
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.imagePickerButton, { borderColor: theme.border }]}
-              onPress={() => handleOCRImage('gallery')}
-            >
-              <Ionicons name="images" size={24} color={theme.primary} />
-              <Text style={[styles.imagePickerText, { color: theme.text }]}>
-                Choose from Gallery
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.pickmodalButton, styles.cancelButton, { borderColor: theme.border }]}
-              onPress={() => setImagePickerVisible(false)}
-            >
-              <Text style={[styles.modalButtonText, { color: theme.text }]}>Cancel</Text>
-            </TouchableOpacity>
           </View>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* LOADING OVERLAY - SHOW DURING OCR */}
-      {ocrLoading && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color={theme.primary} />
-          <Text style={[styles.loadingText, { color: '#fff' }]}>
-            Processing image...
-          </Text>
-        </View>
-      )}
-
-    </View>
+        )}
+        
+		<ListExportSheet listId={listId} visible={exportVisible} onClose={() => setExportVisible(false)} />
+		
+	  </View>
+	</TouchableWithoutFeedback>
   );
 }
 
