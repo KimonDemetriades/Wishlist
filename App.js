@@ -13,6 +13,7 @@ import ListDetailScreen from './src/screens/ListDetailScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import AboutScreen from './src/screens/AboutScreen';
 import QrImportScreen from './src/screens/QrImportScreen';
+import DonateScreen from './src/screens/DonateScreen'; // ADD THIS
 
 const Stack = createStackNavigator();
 
@@ -70,7 +71,16 @@ function AppInner() {
             component={AboutScreen}
             options={{ title: 'About & Privacy' }}
           />
+
+          <Stack.Screen 
+            name="Donate" 
+            component={DonateScreen}
+            options={{ title: 'Support Development' }} 
+          />
+		  
         </Stack.Navigator>
+		
+
       </NavigationContainer>
     </>
   );

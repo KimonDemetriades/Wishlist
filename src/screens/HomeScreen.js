@@ -404,6 +404,13 @@ export default function HomeScreen({ navigation }) {
                 <Text style={[styles.menuItemText, { color: theme.text }]}>About & Privacy</Text>
               </TouchableOpacity>
 
+			  <TouchableOpacity 
+			    style={styles.menuItem}
+			    onPress={() => navigation.navigate('Donate')}
+			  >
+			    <Text>☕ Support Development</Text>
+			  </TouchableOpacity>
+
             </View>
           </TouchableOpacity>
         </Modal>
