@@ -15,10 +15,6 @@ import { useTheme } from '../context/ThemeContext';
 import { Image } from 'react-native';
 import { Keyboard, TouchableWithoutFeedback, useColorScheme } from 'react-native';
 
-import * as FileSystem from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
-import { useListImport } from '../services/ImportManager';
-import { useAllListsExport } from '../services/ListExportModule';
 import { Pressable } from 'react-native';
 
 
@@ -32,13 +28,6 @@ export default function HomeScreen({ navigation }) {
   const [editingListId, setEditingListId] = useState(null);
   const [menuVisible, setMenuVisible] = useState(false);
 
-  const { handleBackupToFile } = useAllListsExport();
-  const { importFromJsonString } = useListImport();
-
-  const [importModalVisible, setImportModalVisible] = useState(false);
-  const [importJson, setImportJson] = useState('');
-  const [importError, setImportError] = useState('');
-  
   const colorScheme = isDark ? 'dark' : 'light';
   //console.log("🔄 Theme changed:", colorScheme);
   const logoSource = colorScheme === 'dark'
@@ -97,18 +86,6 @@ export default function HomeScreen({ navigation }) {
         { text: 'Delete', style: 'destructive', onPress: () => deleteList(listId) },
       ]
     );
-  };
-
-  const handleImport = () => {
-    setImportError('');
-    try {
-      importFromJsonString(importJson);
-      setImportJson('');
-      setImportModalVisible(false);
-      Alert.alert('Imported', 'List imported successfully.');
-    } catch (e) {
-      setImportError(e.message);
-    }
   };
 
   const getListStats = (list) => {
@@ -358,41 +335,17 @@ export default function HomeScreen({ navigation }) {
 
               <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
 
-			  {/* ── NEW: Backup ── */}
+			  {/* ── Import & Export ── */}
 			  <TouchableOpacity
 				style={styles.menuItem}
-				onPress={() => { setMenuVisible(false); handleBackupToFile(); }}
+				onPress={() => { setMenuVisible(false); navigation.navigate('ImportExport'); }}
 			  >
-				<Ionicons name="cloud-download-outline" size={20} color={theme.text} />
-				<Text style={[styles.menuItemText, { color: theme.text }]}>Backup All Lists</Text>
+				<Ionicons name="swap-vertical-outline" size={20} color={theme.text} />
+				<Text style={[styles.menuItemText, { color: theme.text }]}>Import & Export</Text>
 			  </TouchableOpacity>
 
 			  <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
 
-			  {/* ── NEW: Import ── */}
-			  <TouchableOpacity
-				style={styles.menuItem}
-				onPress={() => { setMenuVisible(false); setImportModalVisible(true); }}
-			  >
-				<Ionicons name="cloud-upload-outline" size={20} color={theme.text} />
-				<Text style={[styles.menuItemText, { color: theme.text }]}>Import List</Text>
-			  </TouchableOpacity>
-
-			  <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
-
-			  <TouchableOpacity
-			    style={styles.menuItem}
-			    onPress={() => {
-				  setMenuVisible(false);
-				  navigation.navigate('QrImport');
-			    }}
-			  >
-			    <Ionicons name="qr-code-outline" size={20} color={theme.text} />
-			    <Text style={[styles.menuItemText, { color: theme.text }]}>Import via QR</Text>
-			  </TouchableOpacity>
-	  
-              <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
-			  
 			  <TouchableOpacity
                 style={styles.menuItem}
                 onPress={() => {
@@ -404,99 +357,15 @@ export default function HomeScreen({ navigation }) {
                 <Text style={[styles.menuItemText, { color: theme.text }]}>About & Privacy</Text>
               </TouchableOpacity>
 
-			  <TouchableOpacity 
+			  <TouchableOpacity
 			    style={styles.menuItem}
-			    onPress={() => navigation.navigate('Donate')}
+			    onPress={() => { setMenuVisible(false); navigation.navigate('Donate'); }}
 			  >
-			    <Text>☕ Support Development</Text>
+			    <Text style={[styles.menuItemText, { color: theme.text }]}>☕ Support Development</Text>
 			  </TouchableOpacity>
 
             </View>
           </TouchableOpacity>
-        </Modal>
-
-        {/* Import Modal */}
-        <Modal
-          animationType="slide"
-          transparent
-          visible={importModalVisible}
-          onRequestClose={() => setImportModalVisible(false)}
-        >
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-            <View style={styles.modalOverlay}>
-              <TouchableWithoutFeedback accessible={false}>
-                <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
-
-                  <Text style={[styles.modalTitle, { color: theme.text }]}>
-                    Import List
-                  </Text>
-
-                  <Text style={[styles.importHint, { color: theme.textSecondary }]}>
-                    Paste exported JSON below
-                  </Text>
-
-                  <TextInput
-                    style={[
-                      styles.modalInput,
-                      styles.importInput,
-                      {
-                        color: theme.text,
-                        borderColor: importError ? theme.danger : theme.border,
-                        backgroundColor: theme.background,
-                      }
-                    ]}
-                    placeholder='{ "name": "My List", "items": [...] }'
-                    placeholderTextColor={theme.textSecondary}
-                    value={importJson}
-                    onChangeText={(t) => { setImportJson(t); setImportError(''); }}
-                    multiline
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                  />
-
-                  {importError ? (
-                    <Text style={[styles.importError, { color: theme.danger }]}>
-                      {importError}
-                    </Text>
-                  ) : null}
-
-                  <View style={styles.modalButtons}>
-                    <TouchableOpacity
-                      style={[
-                        styles.modalButton,
-                        styles.cancelButton,
-                        { backgroundColor: theme.border + '33' }
-                      ]}
-                      onPress={() => {
-                        setImportModalVisible(false);
-                        setImportJson('');
-                        setImportError('');
-                      }}
-                    >
-                      <Text style={[styles.cancelButtonText, { color: theme.text }]}>
-                        Cancel
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[
-                        styles.modalButton,
-                        styles.createButton,
-                        { backgroundColor: importJson.trim() ? theme.primary : theme.border }
-                      ]}
-                      onPress={handleImport}
-                      disabled={!importJson.trim()}
-                    >
-                      <Text style={[styles.createButtonText, { color: '#fff' }]}>
-                        Import
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-
-                </View>
-              </TouchableWithoutFeedback>
-            </View>
-          </TouchableWithoutFeedback>
         </Modal>
 
       </View>
@@ -688,20 +557,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 12,
   },
 
-  importHint: {
-    fontSize: 13,
-    marginBottom: 8,
-  },
-  importInput: {
-    height: 120,
-    textAlignVertical: 'top',
-  },
-  importError: {
-    fontSize: 13,
-    marginBottom: 8,
-    marginTop: -8,
-  },
-  
   menuOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.3)',

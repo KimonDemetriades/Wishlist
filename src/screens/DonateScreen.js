@@ -19,6 +19,16 @@ const DONATION_TIERS = [
 
 const productIds = DONATION_TIERS.map(t => t.id);
 
+// Covers all cancellation error codes/messages across platforms and versions
+const isCancelledError = (err) => {
+  return (
+    err.code === 'E_USER_CANCELLED' ||
+    err.code === 'user_cancelled' ||
+    err.message?.toLowerCase().includes('cancel') ||
+    err.message?.toLowerCase().includes('user cancelled')
+  );
+};
+
 export default function DonateScreen() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -50,7 +60,6 @@ export default function DonateScreen() {
         }
         // -----------------------------------------------
 
-        // fetchProducts is the correct expo-iap function (not getProducts)
         const result = await fetchProducts({ skus: productIds, type: 'in-app' });
         setProducts(result);
 
@@ -76,10 +85,10 @@ export default function DonateScreen() {
           setLoading(false);
         });
 
-        // Listen for purchase errors
+        // Single source of truth for all purchase errors — catches both
+        // listener and requestPurchase throw to prevent double alerts
         purchaseErrorSub = purchaseErrorListener((error) => {
-          // E_USER_CANCELLED = user dismissed — don't show error
-          if (error.code !== 'E_USER_CANCELLED') {
+          if (!isCancelledError(error)) {
             Alert.alert('Purchase Failed', error.message);
           }
           setLoading(false);
@@ -106,7 +115,6 @@ export default function DonateScreen() {
   const handleDonate = async (productId) => {
     setLoading(true);
     try {
-      // expo-iap requires platform-specific fields in request
       await requestPurchase({
         request: {
           apple: { sku: productId },
@@ -114,11 +122,11 @@ export default function DonateScreen() {
         },
         type: 'in-app',
       });
-      // Result handled by purchaseUpdatedListener above
+      // All outcomes handled by purchaseUpdatedListener / purchaseErrorListener above
     } catch (err) {
-      if (err.code !== 'E_USER_CANCELLED') {
-        Alert.alert('Purchase Failed', err.message);
-      }
+      // Intentionally swallowed — purchaseErrorListener is the single
+      // source of truth for errors. This catch only prevents an
+      // unhandled promise rejection from crashing the app.
       setLoading(false);
     }
   };

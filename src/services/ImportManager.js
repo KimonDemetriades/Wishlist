@@ -1,10 +1,12 @@
 // ImportManager.js
-// Handles JSON import, QR import, validation, and insertion into DataContext.
+// Handles JSON import, QR import, file import, backup restore, validation, and insertion into DataContext.
 
 import { Alert } from 'react-native';
 import pako from 'pako';
 import { useData } from '../context/DataContext';
 import { decode as b64decode } from 'base-64';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 
 
 // -----------------------------
@@ -79,6 +81,57 @@ export const useListImport = () => {
     return importParsedObject(parsed);
   };
 
+  // NEW: Import single list from a .json file via document picker
+  const importFromFile = async () => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: 'application/json',
+      copyToCacheDirectory: true,
+    });
+
+    if (result.canceled) return null;
+
+    const fileContent = await FileSystem.readAsStringAsync(result.assets[0].uri);
+    return importFromJsonString(fileContent);
+  };
+
+  // NEW: Restore full backup from a .json file via document picker
+  // Loops through each list in the backup and imports individually —
+  // no DataContext changes required
+  const restoreFromBackupFile = async () => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: 'application/json',
+      copyToCacheDirectory: true,
+    });
+
+    if (result.canceled) return 0;
+
+    const fileContent = await FileSystem.readAsStringAsync(result.assets[0].uri);
+
+    let parsed;
+    try {
+      parsed = JSON.parse(fileContent);
+    } catch (e) {
+      throw new Error('Invalid backup file');
+    }
+
+    // Validate it looks like a full backup
+    if (!parsed.version || !Array.isArray(parsed.lists)) {
+      throw new Error('This file is not a valid ListHappens backup.\nTry "Import List" for single list files.');
+    }
+
+    let imported = 0;
+    for (const list of parsed.lists) {
+      try {
+        importParsedObject(list);
+        imported++;
+      } catch (e) {
+        console.warn('Skipped a list during restore:', e.message);
+      }
+    }
+
+    return imported;
+  };
+
   // Core importer
   const importParsedObject = (obj) => {
     if (!isMinimalExport(obj) && !isFullExport(obj)) {
@@ -95,14 +148,9 @@ export const useListImport = () => {
         item.title || '',
         item.description || '',
         item.dueDate || null,
-        item.priority || 'medium'
+        item.priority || 'medium',
+        item.completed || false   // preserve completed state from export
       );
-
-      // If full export includes completed flag:
-      if (item.completed) {
-        // We can't toggle immediately because addItem generates a new ID.
-        // Instead, we will toggle after all items are added.
-      }
     });
 
     return newListId;
@@ -111,5 +159,7 @@ export const useListImport = () => {
   return {
     importFromJsonString,
     importFromQr,
+    importFromFile,
+    restoreFromBackupFile,
   };
 };

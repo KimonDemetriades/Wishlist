@@ -11,7 +11,7 @@
       "android"
     ],
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.listhappens.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false

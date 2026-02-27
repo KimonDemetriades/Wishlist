@@ -13,7 +13,8 @@ import ListDetailScreen from './src/screens/ListDetailScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import AboutScreen from './src/screens/AboutScreen';
 import QrImportScreen from './src/screens/QrImportScreen';
-import DonateScreen from './src/screens/DonateScreen'; // ADD THIS
+import DonateScreen from './src/screens/DonateScreen';
+import ImportExportScreen from './src/screens/ImportExportScreen';
 
 const Stack = createStackNavigator();
 
@@ -76,6 +77,11 @@ function AppInner() {
             name="Donate" 
             component={DonateScreen}
             options={{ title: 'Support Development' }} 
+          />
+          <Stack.Screen
+            name="ImportExport"
+            component={ImportExportScreen}
+            options={{ title: 'Import & Export' }}
           />
 		  
         </Stack.Navigator>
