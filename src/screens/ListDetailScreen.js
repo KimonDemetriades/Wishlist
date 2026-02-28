@@ -719,7 +719,7 @@ export default function ListDetailScreen({ route, navigation }) {
         <Modal transparent animationType="slide" visible={bulkModalVisible}>
 		  <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
             <View style={styles.modalOverlay}>
-              <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
+              <View style={[styles.modalContent, { backgroundColor: theme.card, maxHeight: '85%' }]}>
                 <Text style={[styles.modalTitle, { color: theme.text }]}>
                   Bulk Add Items
                 </Text>
@@ -779,6 +779,7 @@ export default function ListDetailScreen({ route, navigation }) {
                         padding: 10,
                         backgroundColor: theme.background,
                       }}
+					  contentContainerStyle={{ paddingBottom: 8 }}
                     >
                       {stagedItems.map((item, idx) => (
                         <TouchableOpacity

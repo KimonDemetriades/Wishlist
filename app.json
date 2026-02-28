@@ -24,10 +24,10 @@
         "backgroundColor": "#FFFFFF"
       },
       "permissions": [
+        "com.android.vending.BILLING",
         "com.android.vending.BILLING"
       ]
     },
-
     "plugins": [
       [
         "expo-build-properties",
@@ -43,11 +43,16 @@
       ],
       "@react-native-community/datetimepicker"
     ],
-
     "extra": {
       "eas": {
         "projectId": "9aacecdf-8b78-4daa-b11c-2a5aefe26693"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/9aacecdf-8b78-4daa-b11c-2a5aefe26693"
     }
   }
 }
