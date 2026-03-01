@@ -57,7 +57,8 @@ export const DataProvider = ({ children }) => {
       createdAt: Date.now(),
       items: [],
     };
-    setLists([...lists, newList]);
+    //setLists([...lists, newList]);
+	setLists(prev => [...prev, newList]);
     return newList.id;
   };
 

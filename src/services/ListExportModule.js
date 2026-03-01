@@ -32,6 +32,44 @@ const buildMinimalListExport = (list) => {
 
 const buildFullListExport = (list) => list;
 
+// ---------- Helpers: build CSV string ----------
+
+const escapeCsv = (val) => {
+  if (val === null || val === undefined) return '';
+  const str = String(val);
+  // Wrap in quotes if contains comma, quote, or newline
+  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+};
+
+const buildCsvString = (list) => {
+  if (!list) return null;
+  const header = ['Title', 'Description', 'Priority', 'Due Date', 'Completed'].join(',');
+  const rows = list.items.map(item =>
+    [
+      escapeCsv(item.title),
+      escapeCsv(item.description),
+      escapeCsv(item.priority),
+      escapeCsv(item.dueDate ? new Date(item.dueDate).toLocaleDateString() : ''),
+      escapeCsv(item.completed ? 'Yes' : 'No'),
+    ].join(',')
+  );
+  return [header, ...rows].join('\n');
+};
+
+// ---------- Helpers: build safe filename from list name ----------
+
+const buildFileName = (listName, ext) => {
+  const safeName = listName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2, '0');
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const yyyy = now.getFullYear();
+  return `${safeName}_${dd}${mm}${yyyy}.${ext}`;
+};
+
 // ---------- Helpers: compression / encoding ----------
 
 const encodeForQR = (obj) => {
@@ -159,7 +197,7 @@ export const ListExportSheet = ({ listId, visible, onClose }) => {
     if (!json) return;
 
     try {
-      const fileName = `list-${listId}.json`;
+      const fileName = buildFileName(list.name, 'json');
       const uri = FileSystem.cacheDirectory + fileName;
 
       await FileSystem.writeAsStringAsync(uri, json, {
@@ -187,6 +225,38 @@ export const ListExportSheet = ({ listId, visible, onClose }) => {
   };
 
 
+
+  const handleShareCsv = async () => {
+    const csv = buildCsvString(list);
+    if (!csv) return;
+
+    try {
+      const fileName = buildFileName(list.name, 'csv');
+      const uri = FileSystem.cacheDirectory + fileName;
+
+      await FileSystem.writeAsStringAsync(uri, csv, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+
+      const canShare = await Sharing.isAvailableAsync();
+      if (!canShare) {
+        Alert.alert('Not supported', 'File sharing is not available on this device.');
+        return;
+      }
+
+      await Sharing.shareAsync(uri, {
+        mimeType: 'text/csv',
+        dialogTitle: 'Share List CSV',
+        UTI: 'public.comma-separated-values-text',
+      });
+
+      await FileSystem.deleteAsync(uri, { idempotent: true });
+
+    } catch (e) {
+      console.error('Error sharing CSV:', e);
+      Alert.alert('Error', 'Unable to share CSV file.');
+    }
+  };
 
   const handleShowQr = () => {
     const qrPayload = getQrPayload('minimal');
@@ -228,6 +298,10 @@ export const ListExportSheet = ({ listId, visible, onClose }) => {
 
               <TouchableOpacity style={styles.button} onPress={handleShareJsonFile}>
                 <Text style={styles.buttonText}>Share JSON as File</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.button} onPress={handleShareCsv}>
+                <Text style={styles.buttonText}>Share as CSV</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.button} onPress={handleShowQr}>

@@ -81,16 +81,29 @@ export const useListImport = () => {
     return importParsedObject(parsed);
   };
 
-  // NEW: Import single list from a .json file via document picker
+  // NEW: Import single list from a .json or .csv file via document picker
   const importFromFile = async () => {
     const result = await DocumentPicker.getDocumentAsync({
-      type: 'application/json',
+      type: ['application/json', 'text/csv', 'text/comma-separated-values'],
       copyToCacheDirectory: true,
     });
 
     if (result.canceled) return null;
 
-    const fileContent = await FileSystem.readAsStringAsync(result.assets[0].uri);
+    const asset = result.assets[0];
+    const fileContent = await FileSystem.readAsStringAsync(asset.uri);
+    const isCsv = asset.name?.toLowerCase().endsWith('.csv');
+
+    if (isCsv) {
+      const listName = asset.name
+        .replace(/\.csv$/i, '')
+        .replace(/_(\d{8})$/, '')   // strip trailing date suffix e.g. _01012025
+        .replace(/_/g, ' ')
+        .trim();
+      const parsed = parseCsvToList(fileContent, listName);
+      return importParsedObject(parsed);
+    }
+
     return importFromJsonString(fileContent);
   };
 
@@ -130,6 +143,25 @@ export const useListImport = () => {
     }
 
     return imported;
+  };
+
+  // CSV parser — expects header: Title,Description,Priority,Due Date,Completed
+  const parseCsvToList = (csvString, listName) => {
+    const lines = csvString.split('\n').filter(l => l.trim());
+    const items = lines.slice(1).map(line => {
+      // Split respecting quoted fields
+      const cols = line.match(/(".*?"|[^,]+|(?<=,)(?=,)|(?<=,)$|^(?=,))/g) || [];
+      const clean = (v) => (v || '').replace(/^"|"$/g, '').replace(/""/g, '"').trim();
+      return {
+        title: clean(cols[0]),
+        description: clean(cols[1]),
+        priority: clean(cols[2]) || 'medium',
+        dueDate: null, // locale date strings can't reliably round-trip; drop gracefully
+        completed: clean(cols[4]).toLowerCase() === 'yes',
+      };
+    }).filter(item => item.title);
+
+    return { name: listName, items };
   };
 
   // Core importer

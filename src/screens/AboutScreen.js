@@ -30,15 +30,15 @@ const GUIDE_SECTIONS = [
   },
   {
     title: '📤 Exporting a List',
-    content: 'Open a list and tap the export option to share it. Four export formats are available:\n\n• Copy JSON — copies the list data to your clipboard as text\n• Share JSON (Text) — opens the share sheet with the list as plain text\n• Share JSON as File — saves and shares a .json file you can store or send\n• QR Code — generates a compressed QR code you can scan on another device\n\nNote: very large lists may not fit in a QR code. Use JSON file sharing for those.',
+    content: 'Open a list and tap the export option to share it. Five export formats are available:\n\n• Copy JSON — copies the list data to your clipboard as text\n• Share JSON (Text) — opens the share sheet with the list as plain text\n• Share JSON as File — saves a .json file named after your list (e.g. shopping_01032026.json)\n• Share as CSV — saves a .csv file you can open directly in Excel or Google Sheets\n• QR Code — generates a compressed QR code you can scan on another device\n\nNote: very large lists may not fit in a QR code. Use file sharing for those.',
   },
   {
     title: '📥 Importing a List',
-    content: 'Two ways to import:\n\n• QR Scan — tap Scan QR from the menu, point your camera at a ListHappens QR code and the list is imported automatically\n• JSON — paste or open a previously exported JSON and use the import option to restore the list\n\nImported lists are added as new lists and will not overwrite existing ones.',
+    content: 'Access import options via the menu → Import & Export. Three ways to import a single list:\n\n• Import from File — opens a file picker accepting .json or .csv files\n• Import from JSON — paste exported JSON text manually\n• Import via QR — scan a ListHappens QR code with your camera\n\nImported lists are added as new lists and will not overwrite existing ones.',
   },
   {
-    title: '💾 Full Backup',
-    content: 'A full backup exports all your lists at once as a single JSON file. Access this from the main menu. Save the file to cloud storage or email it to yourself to restore later.',
+    title: '💾 Full Backup & Restore',
+    content: 'Access via the menu → Import & Export.\n\n• Backup All Lists — exports all your lists as a single backup.json file. Save to cloud storage or email to yourself.\n• Restore Backup — opens a file picker to select a previously saved backup. All lists are added alongside your existing ones.',
   },
   {
     title: '🌙 Dark Mode',
